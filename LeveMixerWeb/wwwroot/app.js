@@ -2,7 +2,7 @@
    LeveMixer — comportamento da interface
    Fala com o C# por mensagens JSON:
      C# -> JS : settings | state | peaks | open | close
-     JS -> C# : ready | resize | setVolume | setMute | setTheme | setAutostart
+     JS -> C# : ready | resize | setVolume | setMute | setTheme | setAutostart | hide
    ========================================================= */
 (() => {
   'use strict';
@@ -28,6 +28,21 @@
     '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/>' +
     '<path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" ' +
     'stroke-width="1.8" stroke-linecap="round"/></svg>';
+
+  // Ícones das linhas do sistema (não têm .exe de onde tirar o ícone)
+  const SYSTEM_ICONS = {
+    // Volume geral: caixa de som
+    __master:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="5" y="2.5" width="14" height="19" rx="3"/>' +
+      '<circle cx="12" cy="14.5" r="3.6"/><circle cx="12" cy="7" r="1.2" fill="currentColor"/></svg>',
+    // Sons do sistema: sino de notificação
+    __system:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M6 16.5V11a6 6 0 0112 0v5.5l1.5 1.5h-15z"/><path d="M10 20.5a2.2 2.2 0 004 0"/></svg>',
+  };
 
   const rows = new Map();       // id -> { el, slider, ... }
   const iconCache = new Map();  // id -> data URI (o C# envia cada ícone uma única vez)
@@ -58,7 +73,7 @@
       muted: false,
       dragging: false,
       peak: 0,
-      iconSrc: null,
+      iconSrc: undefined,                // diferente de null: o primeiro setIcon sempre desenha
     };
 
     r.nameEl.textContent = name;
@@ -95,8 +110,10 @@
       img.src = src;
       img.alt = '';
       r.iconEl.appendChild(img);
+    } else if (SYSTEM_ICONS[r.id]) {
+      r.iconEl.innerHTML = SYSTEM_ICONS[r.id];
     } else {
-      r.iconEl.textContent = r.id === MASTER ? '♪' : (r.name[0] || '?').toUpperCase();
+      r.iconEl.textContent = (r.name[0] || '?').toUpperCase();
     }
   }
 
@@ -171,8 +188,10 @@
   function applySettings(s) {
     setTheme(s.theme);
     autostartEl.checked = !!s.autostart;
-    settingsEl.hidden = true;                       // sempre abre com as configurações recolhidas
-    settingsBtn.setAttribute('aria-expanded', 'false');
+    settingsEl.classList.add('instant');            // recolhe sem animação (a janela ainda vai aparecer)
+    setSettingsOpen(false);                         // sempre abre com as configurações recolhidas
+    void settingsEl.offsetHeight;
+    settingsEl.classList.remove('instant');
     forceResize = true;                             // o C# espera um "resize" para mostrar a janela
   }
 
@@ -200,17 +219,23 @@
     segButtons.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.mode === mode)));
   }
 
-  settingsBtn.addEventListener('click', () => {
-    const open = settingsEl.hidden;
-    settingsEl.hidden = !open;
+  // A animação é do CSS (.settings.open); o ResizeObserver acompanha a altura e a janela cresce junto.
+  function setSettingsOpen(open) {
+    settingsEl.classList.toggle('open', open);
+    settingsEl.inert = !open;                       // fechada: sem foco por teclado nos controles
     settingsBtn.setAttribute('aria-expanded', String(open));
-    reportHeight();
+  }
+
+  settingsBtn.addEventListener('click', () => {
+    setSettingsOpen(!settingsEl.classList.contains('open'));
   });
 
   segButtons.forEach((b) => b.addEventListener('click', () => {
     setTheme(b.dataset.mode);
     post({ type: 'setTheme', mode: b.dataset.mode });
   }));
+
+  $('minimizeBtn').addEventListener('click', () => post({ type: 'hide' }));
 
   autostartEl.addEventListener('change', () => {
     post({ type: 'setAutostart', enabled: autostartEl.checked });

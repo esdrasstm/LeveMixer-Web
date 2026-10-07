@@ -51,7 +51,8 @@ sealed class AudioService : IDisposable
             .Select(r =>
             {
                 string? icon = null;
-                if (_iconsSent.Add(r.Id)) icon = IconDataUri(r.Path);
+                // Sem caminho do .exe ainda (processo protegido ou recém-aberto): tenta de novo no próximo ciclo
+                if (r.Path != null && _iconsSent.Add(r.Id)) icon = IconDataUri(r.Path);
                 return new AppDto(
                     r.Id, r.Name,
                     r.Sessions.Count == 0 ? 0f : r.Sessions.Max(s => s.SimpleAudioVolume.Volume),

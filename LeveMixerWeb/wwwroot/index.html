@@ -33,10 +33,18 @@
                 stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
+
+      <!-- Minimizar: esconde o mixer (volta para a bandeja) -->
+      <button id="minimizeBtn" class="icon-btn small min-btn" title="Minimizar">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </button>
     </header>
 
     <!-- Caixa de configurações (abre para baixo) -->
-    <section id="settings" class="settings" hidden>
+    <section id="settings" class="settings" inert>
+     <div class="settings-inner">
       <div class="label">Tema</div>
       <div class="segmented" role="radiogroup" aria-label="Tema">
         <button data-mode="system" role="radio" aria-checked="true">Sistema</button>
@@ -53,6 +61,7 @@
       </div>
 
       <!-- Novas configurações entram aqui -->
+     </div>
     </section>
 
     <!-- Volume geral -->

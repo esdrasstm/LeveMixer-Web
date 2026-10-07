@@ -188,12 +188,7 @@ sealed class MixerForm : Form
 
         // A interface renderiza e responde com "resize"; só então a janela aparece.
         _pendingPresent = true;
-        Post(new
-        {
-            type = "settings",
-            theme = _settings.Theme.ToString().ToLowerInvariant(),
-            autostart = AutoStart.IsEnabled
-        });
+        PostSettings();
         PushState();
         _sync.Start();
         _meter.Start();
@@ -310,6 +305,13 @@ sealed class MixerForm : Form
         catch (Exception ex) { Debug.WriteLine(ex); }
     }
 
+    void PostSettings() => Post(new
+    {
+        type = "settings",
+        theme = _settings.Theme.ToString().ToLowerInvariant(),
+        autostart = AutoStart.IsEnabled
+    });
+
     void PushState()
     {
         if (_audio == null) return;
@@ -345,7 +347,16 @@ sealed class MixerForm : Form
             {
                 case "ready":
                     _ready = true;
+                    // Página (re)carregada, por exemplo com F5 no modo --dev: a interface perdeu
+                    // os ícones e o estado, então tudo precisa ser enviado de novo.
+                    _iconsSent.Clear();
                     if (_wantOpen) BeginOpen();
+                    else if (_shown)
+                    {
+                        PostSettings();
+                        PushState();
+                        Post(new { type = "open" });
+                    }
                     break;
 
                 case "resize":
@@ -374,6 +385,10 @@ sealed class MixerForm : Form
 
                 case "setAutostart":
                     AutoStart.Set(root.GetProperty("enabled").GetBoolean());
+                    break;
+
+                case "hide":   // botão minimizar: fecha com animação (também no modo --dev)
+                    _ = CloseAnimatedAsync();
                     break;
             }
         }

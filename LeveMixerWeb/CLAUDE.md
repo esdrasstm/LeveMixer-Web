@@ -27,7 +27,7 @@ C# (WinForms + WebView2) cuida da lógica e da janela. A interface é HTML/CSS/J
 
 ### Mensagens (JSON) entre C# e JS
 - **C# → JS:** `settings` (tema, auto-início), `state` (volumes e lista de apps, a cada 1 s), `peaks` (medidores, a cada 60 ms), `open`, `close`
-- **JS → C#:** `ready`, `resize` (altura do conteúdo), `setVolume`, `setMute`, `setTheme`, `setAutostart`
+- **JS → C#:** `ready`, `resize` (altura do conteúdo), `setVolume`, `setMute`, `setTheme`, `setAutostart`, `hide` (botão minimizar)
 - IDs: `__master` (volume geral), `__system` (sons do sistema), demais = nome do processo em minúsculas (apps com vários processos, como o Chrome, viram uma linha só).
 
 ## Decisões importantes (não desfazer sem motivo)
