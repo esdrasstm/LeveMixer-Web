@@ -1,68 +1,110 @@
 /* =========================================================
-   LeveMixer — visual
+   Volum — visual (glassmorphism)
    Tudo aqui é seu: cores, tamanhos, animações.
+
+   Como as cores funcionam:
+   - Tokens sólidos (abaixo) valem no Windows antigo e no "Modo leve".
+   - Com a classe .glass (Windows 11 + modo leve desligado) as superfícies viram
+     camadas rgba por cima do acrílico do Windows. Mais opaco = aumente o último número.
+   - data-scheme="dark|light" no <html> é o tema efetivo (o JS resolve o "Sistema").
    ========================================================= */
 
-/* ---------- Tema escuro (padrão) ---------- */
+/* O slider anima o valor (--fill) suavemente: precisa ser uma propriedade registrada */
+@property --fill {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
+/* ---------- Tokens: escuro sólido (padrão) ---------- */
 :root {
   --accent: #7c5cff;
-  --accent-2: #8b6cff;
+  --accent-2: #a58cff;
+  --accent-ring: rgba(124, 92, 255, .28);
+  --accent-glow: rgba(124, 92, 255, .55);
+  --danger: #ff7a8a;
+  --meter-a: #4ade80;
+  --meter-b: #2dd4bf;
 
-  --bg: #1e1e24;
-  --header: #25252d;
-  --panel: #2b2b35;
-  --border: #34343f;
-  --text: #ececf1;
-  --subtext: #9a9aa8;
-  --icon: #c9c9d6;
-  --hover: #34343f;
+  --bg: #1c1c22;
+  --surface: #25252d;
+  --surface-hover: #2d2d37;
+  --border: #31313c;
+  --highlight: rgba(255, 255, 255, .03);
+  --text: #f1f1f5;
+  --subtext: #9797a6;
+  --icon: #c6c6d3;
   --track: #3a3a46;
   --meter-bg: #2a2a33;
-  --icon-bg: #34343f;
-  --seg-bg: #2f2f3a;
+  --seg-bg: #1e1e25;
+  --seg-active: #393946;
   --thumb: #ffffff;
-  --thumb-stroke: transparent;
+  --thumb-shadow: 0 1px 4px rgba(0, 0, 0, .45);
+  --sheen: transparent;
+  --edge: transparent;
+  --noise-opacity: 0;
 
-  --enter-ms: 260ms;
+  --enter-ms: 300ms;
   --exit-ms: 120ms;
+  --spring: cubic-bezier(.16, 1, .3, 1);       /* desacelera suave (estilo macOS) */
+  --bounce: cubic-bezier(.34, 1.56, .64, 1);   /* passa um pouquinho e volta */
 }
 
-/* ---------- Tema claro ---------- */
-:root[data-theme="light"] {
-  --bg: #f7f7fa;
-  --header: #ececf2;
-  --panel: #e4e4ec;
-  --border: #d9d9e2;
-  --text: #1f1f27;
+/* ---------- Tokens: claro sólido ---------- */
+:root[data-scheme="light"] {
+  --accent: #6d4cff;
+  --accent-2: #977dff;
+  --accent-ring: rgba(109, 76, 255, .22);
+  --accent-glow: rgba(109, 76, 255, .4);
+  --danger: #e5484d;
+  --meter-a: #22c55e;
+  --meter-b: #14b8a6;
+
+  --bg: #f6f6f9;
+  --surface: #ffffff;
+  --surface-hover: #eeeef4;
+  --border: #e3e3ea;
+  --highlight: rgba(255, 255, 255, .9);
+  --text: #1b1b23;
   --subtext: #6b6b7a;
   --icon: #4a4a58;
-  --hover: #d6d6e2;
-  --track: #cfcfda;
-  --meter-bg: #dadae3;
-  --icon-bg: #dcdce6;
-  --seg-bg: #d9d9e4;
-  --thumb: #ffffff;
-  --thumb-stroke: #bdbdcb;
+  --track: #d6d6e0;
+  --meter-bg: #e7e7ee;
+  --seg-bg: #ececf2;
+  --seg-active: #ffffff;
+  --thumb-shadow: 0 1px 3px rgba(20, 20, 40, .25), 0 0 0 1px rgba(20, 20, 40, .06);
 }
 
-/* ---------- Tema "Sistema": segue o claro/escuro do Windows ---------- */
-@media (prefers-color-scheme: light) {
-  :root[data-theme="system"] {
-    --bg: #f7f7fa;
-    --header: #ececf2;
-    --panel: #e4e4ec;
-    --border: #d9d9e2;
-    --text: #1f1f27;
-    --subtext: #6b6b7a;
-    --icon: #4a4a58;
-    --hover: #d6d6e2;
-    --track: #cfcfda;
-    --meter-bg: #dadae3;
-    --icon-bg: #dcdce6;
-    --seg-bg: #d9d9e4;
-    --thumb: #ffffff;
-    --thumb-stroke: #bdbdcb;
-  }
+/* ---------- Tokens: vidro escuro ---------- */
+:root.glass {
+  --bg: rgba(16, 16, 24, .34);
+  --surface: rgba(255, 255, 255, .055);
+  --surface-hover: rgba(255, 255, 255, .085);
+  --border: rgba(255, 255, 255, .085);
+  --highlight: rgba(255, 255, 255, .10);       /* fio de luz no topo de cada painel */
+  --track: rgba(255, 255, 255, .16);
+  --meter-bg: rgba(255, 255, 255, .07);
+  --seg-bg: rgba(0, 0, 0, .20);
+  --seg-active: rgba(255, 255, 255, .15);
+  --sheen: rgba(255, 255, 255, .075);          /* brilho diagonal no topo do vidro */
+  --edge: rgba(255, 255, 255, .11);            /* contorno de luz da janela */
+  --noise-opacity: .05;                        /* granulado sutil (vidro fosco) */
+}
+
+/* ---------- Tokens: vidro claro ---------- */
+:root.glass[data-scheme="light"] {
+  --bg: rgba(255, 255, 255, .36);
+  --surface: rgba(255, 255, 255, .5);
+  --surface-hover: rgba(255, 255, 255, .7);
+  --border: rgba(255, 255, 255, .7);
+  --highlight: rgba(255, 255, 255, .85);
+  --track: rgba(20, 20, 40, .12);
+  --meter-bg: rgba(20, 20, 40, .06);
+  --seg-bg: rgba(20, 20, 40, .06);
+  --seg-active: rgba(255, 255, 255, .9);
+  --sheen: rgba(255, 255, 255, .5);
+  --edge: rgba(255, 255, 255, .65);
+  --noise-opacity: .035;
 }
 
 /* ---------- Base ---------- */
@@ -78,23 +120,50 @@ html, body {
   user-select: none;
   -webkit-user-select: none;
   cursor: default;
+  -webkit-font-smoothing: antialiased;
 }
+/* No vidro só o cartão pinta; a página fica transparente para o acrílico aparecer */
+:root.glass, :root.glass body { background: transparent; }
+
+button { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible + span { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 
 /* O cartão tem a mesma largura da janela (WidthDip no MixerForm.cs) */
 .card {
+  position: relative;
   width: 360px;
+  padding-bottom: 8px;
   background: var(--bg);
   display: flow-root;
   opacity: 0;                       /* só aparece quando o C# manda "open" */
   transform-origin: 100% 100%;      /* anima a partir do canto da bandeja */
 }
+:root.glass .card {
+  background:
+    radial-gradient(120% 60% at 0% 0%, var(--sheen), transparent 60%),
+    linear-gradient(180deg, var(--sheen), transparent 35%),
+    var(--bg);
+  box-shadow: inset 0 0 0 1px var(--edge);
+  border-radius: 8px;               /* acompanha o canto arredondado do Windows 11 */
+}
+/* Granulado do vidro fosco (estático: custa só na primeira pintura) */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: var(--noise-opacity);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.card > * { position: relative; }   /* conteúdo acima do granulado */
 
-/* ---------- Animações (estilo macOS) ---------- */
-.card.enter { animation: enter var(--enter-ms) cubic-bezier(.16, 1, .3, 1) both; }
+/* ---------- Animações de abrir/fechar ---------- */
+.card.enter { animation: enter var(--enter-ms) var(--spring) both; }
 .card.leave { animation: leave var(--exit-ms) ease-in both; }
 
 @keyframes enter {
-  from { opacity: 0; transform: scale(.96) translateY(8px); }
+  from { opacity: 0; transform: scale(.965) translateY(10px); }   /* sem blur: pesa com o vidro */
   to   { opacity: 1; transform: none; }
 }
 @keyframes leave {
@@ -104,187 +173,367 @@ html, body {
 
 /* As linhas entram em cascata */
 .card.enter .row {
-  animation: rise .34s cubic-bezier(.16, 1, .3, 1) both;
-  animation-delay: calc(var(--i, 0) * 28ms);
+  animation: rise .42s var(--spring) both;
+  animation-delay: calc(var(--i, 0) * 30ms + 40ms);
 }
 @keyframes rise {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(10px); }
 }
 
 /* ---------- Cabeçalho ---------- */
 .header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px 6px;
+  gap: 4px;
+  padding: 10px 10px 8px 14px;
 }
-.logo { width: 26px; height: 26px; display: block; }
+.logo {
+  width: 24px; height: 24px;
+  display: block;
+  filter: drop-shadow(0 2px 6px var(--accent-ring));
+}
+.brand {
+  margin-left: 6px;
+  margin-right: auto;               /* empurra os botões para a direita */
+  font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: .2px;
+}
 
 .icon-btn {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: 9px;
   background: transparent;
   color: var(--icon);
   cursor: pointer;
+  transition: background .18s ease, color .18s ease, transform .18s var(--bounce);
 }
-.icon-btn:hover { background: var(--hover); }
-.icon-btn.small { width: 28px; height: 28px; }
+.icon-btn:hover { background: var(--surface-hover); color: var(--text); }
+.icon-btn:active { transform: scale(.9); }
 .icon-btn svg { width: 16px; height: 16px; }
 
-/* Minimizar: sempre no canto direito do cabeçalho (a lista rola por baixo, o cabeçalho não) */
-.min-btn { margin-left: auto; }
-
-.chevron { transition: transform .2s ease; }
+.chevron { transition: transform .32s var(--spring); }
 [aria-expanded="true"] .chevron { transform: rotate(180deg); }
+
+/* ---------- Painel de vidro (usado no volume geral e nas configurações) ---------- */
+.panel {
+  margin: 0 10px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 0 var(--highlight);
+}
+:root.glass .panel { box-shadow: inset 0 1px 0 var(--highlight), 0 8px 24px rgba(0, 0, 0, .12); }
 
 /* ---------- Configurações ---------- */
 /* Abre e fecha deslizando: a linha do grid vai de 0fr (fechada) a 1fr (altura do conteúdo) */
 .settings {
-  --settings-ms: 280ms;
+  --settings-ms: 340ms;
   display: grid;
   grid-template-rows: 0fr;
-  background: var(--panel);
-  transition: grid-template-rows var(--settings-ms) cubic-bezier(.16, 1, .3, 1);
+  transition: grid-template-rows var(--settings-ms) var(--spring);
 }
 .settings.open { grid-template-rows: 1fr; }
 
 .settings-inner {
   min-height: 0;
   overflow: hidden;
-  padding: 0 12px;
   opacity: 0;
-  transition: opacity var(--settings-ms) ease, padding var(--settings-ms) cubic-bezier(.16, 1, .3, 1);
+  transform: translateY(-6px) scale(.985);
+  transition: opacity calc(var(--settings-ms) * .8) ease, transform var(--settings-ms) var(--spring);
 }
-.settings.open .settings-inner { padding: 10px 12px 12px; opacity: 1; }
+.settings.open .settings-inner { opacity: 1; transform: none; }
 .settings.instant, .settings.instant .settings-inner { transition: none; }
 
-.label { font-size: 12px; color: var(--subtext); margin: 0 3px 6px; }
+.settings-panel { padding: 12px 12px 6px; margin-bottom: 8px; }
 
-.segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.segmented button {
-  border: 0;
-  border-radius: 7px;
-  padding: 7px 0;
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: var(--subtext);
+  margin: 0 2px 8px;
+}
+
+/* Seletor de tema com "pílula" que desliza até a opção escolhida */
+.segmented {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 3px;
+  border-radius: 11px;
   background: var(--seg-bg);
-  color: var(--text);
-  font: inherit;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .12);
+}
+.segmented::before {
+  content: "";
+  position: absolute;
+  top: 3px; bottom: 3px; left: 3px;
+  width: calc((100% - 6px) / 3);
+  border-radius: 8px;
+  background: var(--seg-active);
+  box-shadow: inset 0 1px 0 var(--highlight), 0 2px 8px rgba(0, 0, 0, .18);
+  transform: translateX(calc(var(--seg-i, 0) * 100%));
+  transition: transform .38s var(--spring);
+}
+.segmented button {
+  position: relative;
+  border: 0;
+  padding: 7px 0;
+  background: transparent;
+  color: var(--subtext);
   font-size: 12px;
   cursor: pointer;
+  transition: color .2s ease;
 }
-.segmented button:hover { background: var(--hover); }
-.segmented button[aria-checked="true"] { background: var(--accent); color: #fff; }
+.segmented button:hover { color: var(--text); }
+.segmented button[aria-checked="true"] { color: var(--text); font-weight: 600; }
 
 .setting-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 12px 3px 0;
+  gap: 12px;
+  padding: 10px 2px;
+}
+.setting-row + .setting-row { border-top: 1px solid var(--border); }
+.segmented + .setting-row { margin-top: 6px; }
+.setting-text small {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--subtext);
 }
 
-.switch { position: relative; width: 36px; height: 20px; }
+/* Chave liga/desliga */
+.switch { position: relative; flex: none; width: 38px; height: 22px; }
 .switch input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
 .switch span {
   position: absolute; inset: 0;
-  border-radius: 20px;
+  border-radius: 22px;
   background: var(--track);
-  transition: background .2s;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .15);
+  transition: background .25s ease, box-shadow .25s ease;
 }
 .switch span::after {
   content: "";
-  position: absolute; top: 2px; left: 2px;
+  position: absolute; top: 3px; left: 3px;
   width: 16px; height: 16px;
   border-radius: 50%;
   background: #fff;
-  transition: transform .2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .3);
+  transition: transform .35s var(--bounce);
 }
-.switch input:checked + span { background: var(--accent); }
+.switch input:checked + span {
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
+  box-shadow: 0 0 12px var(--accent-ring);
+}
 .switch input:checked + span::after { transform: translateX(16px); }
+.switch input:active + span::after { width: 19px; }
 
-/* ---------- Listas ---------- */
-.master { background: var(--header); padding: 4px 0; }
+/* ---------- Volume geral ---------- */
+.master { padding: 2px 0; }
+.master .row { padding: 10px 8px 10px 12px; }
+.master .row-name { font-weight: 600; }
+
+/* ---------- Lista de apps ---------- */
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 14px 22px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: var(--subtext);
+}
+.count {
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  text-align: center;
+  letter-spacing: 0;
+}
 
 .apps {
-  max-height: 400px;
+  max-height: 380px;
   overflow-y: auto;
-  padding: 4px 0 6px;
+  padding: 0 10px;
 }
-.apps::-webkit-scrollbar { width: 8px; }
-.apps::-webkit-scrollbar-thumb { background: var(--track); border-radius: 4px; border: 2px solid var(--bg); }
+.apps::-webkit-scrollbar { width: 10px; }
+.apps::-webkit-scrollbar-thumb {
+  background: var(--track);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
 
-.empty { margin: 18px 0; text-align: center; font-size: 12px; color: var(--subtext); }
+.empty {
+  margin: 14px 0 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--subtext);
+}
 .empty[hidden] { display: none; }
 
-/* ---------- Linha de app ---------- */
+/* ---------- Linha (app ou volume geral) ---------- */
 .row {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   column-gap: 12px;
-  padding: 7px 10px 7px 14px;
-  transition: opacity .2s;
+  padding: 8px 6px 8px 10px;
+  border-radius: 12px;
+  transition: background .2s ease, opacity .3s ease;
 }
-.row.dim { opacity: .55; }
+.apps .row:hover { background: var(--surface); box-shadow: inset 0 1px 0 var(--highlight); }
+.row.dim { opacity: .5; }
 
 /* Ícone sem fundo: aparece só o ícone do app (ou a inicial, quando não há ícone) */
 .row-icon {
   width: 26px; height: 26px;
   display: grid; place-items: center;
   font-weight: 600;
+  color: var(--icon);
 }
-.row-icon img { width: 26px; height: 26px; display: block; }
+.row-icon img {
+  width: 26px; height: 26px;
+  display: block;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25));
+}
 .row-icon svg { width: 22px; height: 22px; display: block; color: var(--icon); }
 
 .row-main { min-width: 0; }
-.row-top { display: flex; justify-content: space-between; gap: 8px; }
+.row-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .row-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.row-pct { font-size: 12px; color: var(--subtext); }
+.row-pct {
+  min-width: 26px;
+  text-align: right;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--subtext);
+  transition: color .2s ease, transform .25s var(--bounce);
+  transform-origin: right center;
+}
+.row.dragging .row-pct { color: var(--text); font-weight: 600; transform: scale(1.12); }
 
+/* Medidor de nível */
 .meter {
-  height: 3px;
-  margin-top: 3px;
+  height: 2px;
+  margin: 1px 7px 0;
   border-radius: 2px;
   background: var(--meter-bg);
   overflow: hidden;
 }
 .meter-fill {
   height: 100%;
-  background: #4ade80;
+  background: linear-gradient(90deg, var(--meter-a), var(--meter-b));
   transform-origin: left;
   transform: scaleX(0);
 }
+:root.glass .meter-fill { box-shadow: 0 0 6px var(--meter-a); }
 
-.row.muted .slider { opacity: .4; }
+/* Botão de mute */
+.mute { border-radius: 50%; }
+.row.muted .mute { color: var(--danger); }
+.row.muted .slider { opacity: .4; filter: saturate(.3); }
 
-/* ---------- Slider ---------- */
+/* ---------- Slider ----------
+   Um <input type="range"> invisível recebe o mouse; o que aparece (trilho, preenchimento
+   e bolinha) é desenhado por cima e segue o valor --fill com transição (movimento suave). */
 .slider {
-  -webkit-appearance: none;
-  appearance: none;
-  display: block;
-  width: 100%;
-  height: 20px;
-  margin: 3px 0 0;
-  background: transparent;
-  cursor: pointer;
-  --fill: 50%;
+  position: relative;
+  height: 22px;
+  margin-top: 2px;
+  --thumb-size: 14px;
+  transition: --fill 180ms var(--spring), opacity .25s ease, filter .25s ease;
 }
-.slider:focus { outline: none; }
-.slider::-webkit-slider-runnable-track {
+.slider-track {
+  position: absolute;
+  left: 0; right: 0; top: 50%;
   height: 4px;
-  border-radius: 2px;
-  background: linear-gradient(to right, var(--accent-2) var(--fill), var(--track) var(--fill));
+  transform: translateY(-50%);
+  border-radius: 99px;
+  background: var(--track);
+  overflow: hidden;
+  transition: height .2s var(--spring);
 }
-.slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  box-sizing: border-box;
-  width: 14px; height: 14px;
-  margin-top: -5px;
+.slider:hover .slider-track,
+.row.dragging .slider-track { height: 6px; }
+
+.slider-fill {
+  height: 100%;
+  width: calc(var(--thumb-size) / 2 + (100% - var(--thumb-size)) * var(--fill) / 100);
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+:root.glass .slider-fill { box-shadow: 0 0 10px var(--accent-glow); }
+
+.slider-thumb {
+  position: absolute;
+  top: 50%;
+  left: calc((100% - var(--thumb-size)) * var(--fill) / 100);
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  margin-top: calc(var(--thumb-size) / -2);
   border-radius: 50%;
   background: var(--thumb);
-  border: 1px solid var(--thumb-stroke);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+  box-shadow: var(--thumb-shadow), 0 0 0 0 var(--accent-ring);
+  pointer-events: none;
+  transition: transform .28s var(--bounce), box-shadow .25s ease;
 }
+.slider:hover .slider-thumb { transform: scale(1.12); }
+.row.dragging .slider-thumb {
+  transform: scale(1.22);
+  box-shadow: var(--thumb-shadow), 0 0 0 6px var(--accent-ring);
+}
+
+/* Foco pelo teclado (Tab + setas) também mostra o anel na bolinha */
+.slider:has(.slider-input:focus-visible) .slider-thumb {
+  box-shadow: var(--thumb-shadow), 0 0 0 4px var(--accent-ring);
+}
+
+/* O input de verdade: invisível, com a "bolinha" do mesmo tamanho para o clique bater certinho */
+.slider-input {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  opacity: 0;
+  cursor: pointer;
+}
+.slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: var(--thumb-size);
+  height: 22px;
+}
+
+/* =========================================================
+   Modo leve: tira tudo o que custa processamento
+   (vidro, brilhos, sombras, granulado e animações)
+   ========================================================= */
+:root.lite *, :root.lite *::before, :root.lite *::after {
+  animation: none !important;
+  transition: none !important;
+}
+:root.lite .card.enter { opacity: 1; }
+:root.lite .card.leave { opacity: 0; }
+:root.lite .card::before { display: none; }
+:root.lite .logo { filter: none; }
+:root.lite .row-icon img { filter: none; }
+:root.lite .switch input:checked + span { box-shadow: none; }

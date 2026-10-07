@@ -1,8 +1,9 @@
 /* =========================================================
-   LeveMixer — comportamento da interface
+   Volum — comportamento da interface
    Fala com o C# por mensagens JSON:
      C# -> JS : settings | state | peaks | open | close
-     JS -> C# : ready | resize | setVolume | setMute | setTheme | setAutostart | hide
+     JS -> C# : ready | resize | setVolume | setMute | setTheme | setAutostart
+                | setLightMode | hide | tick
    ========================================================= */
 (() => {
   'use strict';
@@ -18,7 +19,12 @@
   const settingsEl = $('settings');
   const settingsBtn = $('settingsBtn');
   const autostartEl = $('autostart');
-  const segButtons = [...document.querySelectorAll('.segmented button')];
+  const liteEl = $('lite');
+  const appCountEl = $('appCount');
+  const segmentedEl = document.querySelector('.segmented');
+  const segButtons = [...segmentedEl.querySelectorAll('button')];
+  const root = document.documentElement;
+  const prefersLight = window.matchMedia('(prefers-color-scheme: light)');
 
   const ICON_VOL =
     '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/>' +
@@ -57,7 +63,11 @@
       '<div class="row-icon"></div>' +
       '<div class="row-main">' +
         '<div class="row-top"><span class="row-name"></span><span class="row-pct"></span></div>' +
-        '<input class="slider" type="range" min="0" max="100" step="1">' +
+        '<div class="slider">' +
+          '<div class="slider-track"><div class="slider-fill"></div></div>' +
+          '<div class="slider-thumb"></div>' +
+          '<input class="slider-input" type="range" min="0" max="100" step="1">' +
+        '</div>' +
         '<div class="meter"><div class="meter-fill"></div></div>' +
       '</div>' +
       '<button class="icon-btn mute" title="Silenciar"></button>';
@@ -67,7 +77,8 @@
       iconEl: el.querySelector('.row-icon'),
       nameEl: el.querySelector('.row-name'),
       pct: el.querySelector('.row-pct'),
-      slider: el.querySelector('.slider'),
+      sliderBox: el.querySelector('.slider'),        // desenho (trilho, preenchimento, bolinha)
+      slider: el.querySelector('.slider-input'),     // input invisível que recebe o mouse
       meter: el.querySelector('.meter-fill'),
       mute: el.querySelector('.mute'),
       muted: false,
@@ -80,9 +91,13 @@
     setIcon(r, iconCache.get(id));
     updateMuteUi(r);
 
-    r.slider.addEventListener('pointerdown', () => { r.dragging = true; });
+    r.slider.addEventListener('pointerdown', () => {
+      r.dragging = true;
+      el.classList.add('dragging');                // bolinha cresce, número em destaque
+    });
     r.slider.addEventListener('input', () => {
       const v = Number(r.slider.value);
+      tick(r, v);
       setFill(r, v);
       post({ type: 'setVolume', id, value: v / 100 });
       if (r.muted && v > 0) {            // mexeu no slider -> tira o mute
@@ -117,8 +132,22 @@
     }
   }
 
+  // Som sutil: um "tic" a cada 5% (como os dentes de um botão giratório), no máximo um a cada 45 ms
+  const TICK_STEP = 5;
+  let lastTickAt = 0;
+  function tick(r, v) {
+    const step = Math.floor(v / TICK_STEP);
+    const prev = Math.floor(Number(r.pct.textContent) / TICK_STEP);
+    const now = performance.now();
+    if (step !== prev && now - lastTickAt > 45) {
+      lastTickAt = now;
+      post({ type: 'tick' });
+    }
+  }
+
+  // --fill vai de 0 a 100; o CSS anima a mudança (o slider desliza até o valor novo)
   function setFill(r, v) {
-    r.slider.style.setProperty('--fill', v + '%');
+    r.sliderBox.style.setProperty('--fill', v);
     r.pct.textContent = String(v);
   }
 
@@ -172,6 +201,7 @@
     }
 
     emptyEl.hidden = ids.length > 0;
+    appCountEl.textContent = String(ids.length);
     reportHeight();
   }
 
@@ -187,6 +217,8 @@
 
   function applySettings(s) {
     setTheme(s.theme);
+    glassSupported = !!s.glass;
+    setLite(!!s.lite);
     autostartEl.checked = !!s.autostart;
     settingsEl.classList.add('instant');            // recolhe sem animação (a janela ainda vai aparecer)
     setSettingsOpen(false);                         // sempre abre com as configurações recolhidas
@@ -215,9 +247,35 @@
   /* ---------------- Configurações ---------------- */
 
   function setTheme(mode) {
-    document.documentElement.dataset.theme = mode;
-    segButtons.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.mode === mode)));
+    root.dataset.theme = mode;
+    segButtons.forEach((b, i) => {
+      const on = b.dataset.mode === mode;
+      b.setAttribute('aria-checked', String(on));
+      if (on) segmentedEl.style.setProperty('--seg-i', i);   // a pílula desliza até aqui
+    });
+    applyScheme();
   }
+
+  // Tema efetivo (claro/escuro): resolve o "Sistema" e acompanha a troca do Windows ao vivo
+  function applyScheme() {
+    const mode = root.dataset.theme;
+    const light = mode === 'light' || (mode === 'system' && prefersLight.matches);
+    root.dataset.scheme = light ? 'light' : 'dark';
+  }
+  prefersLight.addEventListener('change', applyScheme);
+
+  // Vidro só quando o Windows suporta e o modo leve está desligado
+  let glassSupported = false;
+  function setLite(on) {
+    liteEl.checked = on;
+    root.classList.toggle('lite', on);
+    root.classList.toggle('glass', glassSupported && !on);
+  }
+
+  liteEl.addEventListener('change', () => {
+    setLite(liteEl.checked);
+    post({ type: 'setLightMode', enabled: liteEl.checked });
+  });
 
   // A animação é do CSS (.settings.open); o ResizeObserver acompanha a altura e a janela cresce junto.
   function setSettingsOpen(open) {
@@ -241,7 +299,9 @@
     post({ type: 'setAutostart', enabled: autostartEl.checked });
   });
 
-  window.addEventListener('pointerup', () => rows.forEach((r) => { r.dragging = false; }));
+  const endDrag = () => rows.forEach((r) => { r.dragging = false; r.el.classList.remove('dragging'); });
+  window.addEventListener('pointerup', endDrag);
+  window.addEventListener('pointercancel', endDrag);
 
   /* ---------------- Tamanho da janela ---------------- */
   // O C# redimensiona a janela para caber exatamente no conteúdo.

@@ -1,73 +1,98 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-theme="system">
+<html lang="pt-BR" data-theme="system" data-scheme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LeveMixer</title>
+  <title>Volum</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <main id="card" class="card">
 
-    <!-- Cabeçalho: logo + botão de configurações -->
+    <!-- Cabeçalho: logo + nome + configurações + minimizar -->
     <header class="header">
       <!-- Para usar sua logo: troque este <svg> por <img class="logo" src="logo.png" alt=""> -->
       <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
-        <circle cx="15.5" cy="15.5" r="15.5" fill="#7c5cff"/>
-        <g stroke="#fff" stroke-width="2.5" stroke-linecap="round">
-          <line x1="9"  y1="7" x2="9"  y2="25"/>
-          <line x1="16" y1="7" x2="16" y2="25"/>
-          <line x1="23" y1="7" x2="23" y2="25"/>
+        <defs>
+          <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#9b82ff"/>
+            <stop offset="1" stop-color="#6a4cf5"/>
+          </linearGradient>
+        </defs>
+        <circle cx="16" cy="16" r="15.5" fill="url(#logoGrad)"/>
+        <g stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".95">
+          <line x1="9.5"  y1="8" x2="9.5"  y2="24"/>
+          <line x1="16"   y1="8" x2="16"   y2="24"/>
+          <line x1="22.5" y1="8" x2="22.5" y2="24"/>
         </g>
         <g fill="#fff">
-          <circle cx="9"  cy="20" r="3.5"/>
-          <circle cx="16" cy="11" r="3.5"/>
-          <circle cx="23" cy="17" r="3.5"/>
+          <circle cx="9.5"  cy="19.5" r="3.4"/>
+          <circle cx="16"   cy="11.5" r="3.4"/>
+          <circle cx="22.5" cy="17"   r="3.4"/>
         </g>
       </svg>
+      <span class="brand">Volum</span>
 
-      <button id="settingsBtn" class="icon-btn small" title="Configurações" aria-expanded="false">
+      <button id="settingsBtn" class="icon-btn" title="Configurações" aria-expanded="false">
         <svg class="chevron" viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M3 6l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6"
+          <path d="M3.5 6l4.5 4.5L12.5 6" fill="none" stroke="currentColor" stroke-width="1.6"
                 stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
 
       <!-- Minimizar: esconde o mixer (volta para a bandeja) -->
-      <button id="minimizeBtn" class="icon-btn small min-btn" title="Minimizar">
+      <button id="minimizeBtn" class="icon-btn" title="Minimizar">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <path d="M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
         </svg>
       </button>
     </header>
 
-    <!-- Caixa de configurações (abre para baixo) -->
+    <!-- Configurações (abre deslizando para baixo) -->
     <section id="settings" class="settings" inert>
-     <div class="settings-inner">
-      <div class="label">Tema</div>
-      <div class="segmented" role="radiogroup" aria-label="Tema">
-        <button data-mode="system" role="radio" aria-checked="true">Sistema</button>
-        <button data-mode="dark"   role="radio" aria-checked="false">Escuro</button>
-        <button data-mode="light"  role="radio" aria-checked="false">Claro</button>
-      </div>
+      <div class="settings-inner">
+        <div class="panel settings-panel">
 
-      <div class="setting-row">
-        <span>Iniciar com o Windows</span>
-        <label class="switch">
-          <input id="autostart" type="checkbox">
-          <span></span>
-        </label>
-      </div>
+          <div class="label">Tema</div>
+          <div class="segmented" role="radiogroup" aria-label="Tema">
+            <button data-mode="system" role="radio" aria-checked="true">Sistema</button>
+            <button data-mode="dark"   role="radio" aria-checked="false">Escuro</button>
+            <button data-mode="light"  role="radio" aria-checked="false">Claro</button>
+          </div>
 
-      <!-- Novas configurações entram aqui -->
-     </div>
+          <div class="setting-row">
+            <span class="setting-text">Iniciar com o Windows</span>
+            <label class="switch">
+              <input id="autostart" type="checkbox">
+              <span></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <span class="setting-text">
+              Modo leve
+              <small>Desliga vidro, brilhos e animações</small>
+            </span>
+            <label class="switch">
+              <input id="lite" type="checkbox">
+              <span></span>
+            </label>
+          </div>
+
+          <!-- Novas configurações entram aqui -->
+        </div>
+      </div>
     </section>
 
     <!-- Volume geral -->
-    <section id="master" class="master"></section>
+    <section id="master" class="panel master"></section>
 
     <!-- Apps -->
+    <div class="section-label">
+      <span>Aplicativos</span>
+      <span id="appCount" class="count">0</span>
+    </div>
     <section id="apps" class="apps"></section>
     <p id="empty" class="empty" hidden>Nenhum app usando áudio agora</p>
 

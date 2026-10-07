@@ -6,8 +6,9 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <RootNamespace>LeveMixer</RootNamespace>
-    <AssemblyName>LeveMixer</AssemblyName>
+    <RootNamespace>Volum</RootNamespace>
+    <AssemblyName>Volum</AssemblyName>
+    <Product>Volum</Product>
     <InvariantGlobalization>true</InvariantGlobalization>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>

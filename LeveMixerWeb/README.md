@@ -1,6 +1,6 @@
-# LeveMixer (C# + HTML/CSS)
+# Volum (C# + HTML/CSS)
 
-Mixer de volume por aplicativo para Windows.
+Mixer de volume por aplicativo para Windows, com visual em vidro (glassmorphism) e um "Modo leve" que desliga os efeitos.
 - **Lógica (C#)**: `AudioService.cs` (áudio), `MixerForm.cs` (janela/WebView2), `TrayController.cs`, `Settings.cs`
 - **Interface (HTML/CSS/JS)**: pasta `wwwroot/` — `index.html`, `style.css`, `app.js`
 
@@ -19,6 +19,6 @@ Edite `wwwroot/style.css` (cores em variáveis no topo, animações em `@keyfram
 Não precisa recompilar: feche o mixer, espere uns segundos (ou saia pela bandeja) e abra de novo.
 
 ## Modo desenvolvedor
-    LeveMixer.exe --dev
+    Volum.exe --dev
 - F12 abre o DevTools (inspecionar HTML/CSS como num site)
-- O mixer não fecha ao perder o foco
+- O mixer abre assim que o app inicia e não fecha ao perder o foco

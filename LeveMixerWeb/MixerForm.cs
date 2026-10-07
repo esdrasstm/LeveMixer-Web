@@ -11,7 +11,7 @@ using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 using Timer = System.Windows.Forms.Timer;
 
-namespace LeveMixer;
+namespace Volum;
 
 /// <summary>
 /// Janela sem borda que hospeda a interface (HTML/CSS/JS) via WebView2.
@@ -22,8 +22,6 @@ sealed class MixerForm : Form
     // Largura da janela em "pixels CSS". Se mudar aqui, mude também em style.css (.card { width })
     const int WidthDip = 360;
     const int MarginDip = 12;      // distância da borda da área de trabalho
-    const int SlideDip = 14;       // quanto a janela "sobe" ao abrir
-    const int OpenMs = 260;
     const int CloseMs = 130;       // acompanha --exit-ms do CSS (120ms)
 
     static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -36,15 +34,22 @@ sealed class MixerForm : Form
     readonly AppSettings _settings = AppSettings.Load();
     AudioService? _audio;
 
-    bool _initStarted, _ready, _wantOpen, _pendingPresent, _shown, _closing;
-    int _heightDip = 200;
+    bool _initStarted, _ready, _wantOpen, _pendingPresent, _shown, _closing, _contentShown;
+    // Última altura conhecida: a janela já aparece no tamanho certo, mesmo depois de ser descartada
+    static int s_heightDip = 420;
     int _slideOffsetPx;
     Point _anchor;                 // canto inferior direito (em pixels) onde a janela assenta
-    DateTime _presentedAt;
+    DateTime _presentedAt, _contentAt;
 
     public DateTime LastHiddenUtc { get; private set; } = DateTime.MinValue;
     /// <summary>Visível e não está fechando.</summary>
     public bool IsOpen => _shown && !_closing;
+
+    /// <summary>
+    /// Um clique na bandeja só fecha depois que o conteúdo apareceu (e não logo em seguida):
+    /// assim um segundo clique de impaciência durante o carregamento não fecha a janela.
+    /// </summary>
+    public bool CanCloseByClick => _contentShown && (DateTime.UtcNow - _contentAt).TotalMilliseconds > 400;
 
     public MixerForm()
     {
@@ -52,13 +57,12 @@ sealed class MixerForm : Form
         StartPosition = FormStartPosition.Manual;
         ShowInTaskbar = false;
         TopMost = true;
-        Text = "LeveMixer";
-        BackColor = Color.FromArgb(30, 30, 36);
+        Text = "Volum";
         Size = new Size((int)Math.Round(WidthDip * DeviceDpi / 96f), 300);
-
         _web.Dock = DockStyle.Fill;
-        _web.DefaultBackgroundColor = Color.FromArgb(30, 30, 36);
+        ApplyBackdrop();
         Controls.Add(_web);
+        if (_settings.LightMode) _meter.Interval = MeterLiteMs;
 
         _sync.Tick += (_, _) => PushState();
         _meter.Tick += (_, _) => PushPeaks();
@@ -72,7 +76,7 @@ sealed class MixerForm : Form
         {
             if (Program.DevMode || !_shown || _closing) return;
             if ((DateTime.UtcNow - _presentedAt).TotalMilliseconds < 300) return;
-            _ = CloseAnimatedAsync();
+            DevLog.Write("perdeu o foco: fechando"); _ = CloseAnimatedAsync();
         };
     }
 
@@ -95,10 +99,55 @@ sealed class MixerForm : Form
         {
             int round = 2; // DWMWCP_ROUND (Windows 11; no Windows 10 é ignorado)
             DwmSetWindowAttribute(Handle, 33, ref round, sizeof(int));
-            var m = new MARGINS { Left = 1, Right = 1, Top = 1, Bottom = 1 }; // habilita a sombra
-            DwmExtendFrameIntoClientArea(Handle, ref m);
         }
         catch { }
+        ApplyBackdrop();
+    }
+
+    // Acrílico nativo só existe a partir do Windows 11 22H2 (build 22621); antes disso, visual sólido.
+    static readonly bool GlassSupported = Environment.OSVersion.Version.Build >= 22621;
+    bool UseGlass => GlassSupported && !_settings.LightMode;
+
+    const int MeterMs = 60, MeterLiteMs = 150;   // medidores: normal / modo leve
+
+    /// <summary>
+    /// Vidro (acrílico do Windows 11 atrás da interface) ou fundo sólido (modo leve / Windows antigo).
+    /// Pode ser chamado a qualquer momento: troca na hora quando a chave "Modo leve" muda.
+    /// </summary>
+    void ApplyBackdrop()
+    {
+        bool dark = IsDarkTheme();
+        var solid = dark ? Color.FromArgb(28, 28, 34) : Color.FromArgb(246, 246, 249);
+
+        // Preto = transparente para o DWM: aparece o acrílico. O WebView também fica transparente.
+        BackColor = UseGlass ? Color.Black : solid;
+        _web.DefaultBackgroundColor = UseGlass ? Color.Transparent : solid;
+
+        if (!IsHandleCreated) return;
+        try
+        {
+            int d = dark ? 1 : 0;
+            DwmSetWindowAttribute(Handle, 20, ref d, sizeof(int));          // DWMWA_USE_IMMERSIVE_DARK_MODE (tom do vidro)
+
+            int n = UseGlass ? -1 : 1;                                        // -1: janela inteira de vidro; 1: só a sombra
+            var m = new MARGINS { Left = n, Right = n, Top = n, Bottom = n };
+            DwmExtendFrameIntoClientArea(Handle, ref m);
+
+            if (GlassSupported)
+            {
+                int backdrop = UseGlass ? 3 : 1;                              // DWMSBT_TRANSIENTWINDOW (acrílico) / DWMSBT_NONE
+                DwmSetWindowAttribute(Handle, 38, ref backdrop, sizeof(int)); // DWMWA_SYSTEMBACKDROP_TYPE
+            }
+        }
+        catch { }
+    }
+
+    bool IsDarkTheme()
+    {
+        if (_settings.Theme != ThemeMode.System) return _settings.Theme == ThemeMode.Dark;
+        using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+            @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+        return k?.GetValue("AppsUseLightTheme") is int v && v == 0;
     }
 
     [DllImport("dwmapi.dll")]
@@ -118,15 +167,37 @@ sealed class MixerForm : Form
         _idle.Stop();
         _wantOpen = true;
 
+        // A janela (vidro vazio) aparece na hora do clique; o conteúdo surge quando estiver pronto.
+        // A frio (WebView2 descartado), iniciar o WebView2 leva ~1 s.
+        bool wasShown = _shown;
+        if (!wasShown) ShowShell();
+
         if (!_initStarted)
         {
             _initStarted = true;
             await InitWebViewAsync();
         }
-        else if (_ready && !_shown)
+        else if (_ready && !wasShown)
         {
             BeginOpen();
         }
+    }
+
+    void ShowShell()
+    {
+        float k = DeviceDpi / 96f;
+        var wa = Screen.FromPoint(Cursor.Position).WorkingArea;
+        _anchor = new Point(wa.Right - (int)(MarginDip * k), wa.Bottom - (int)(MarginDip * k));
+
+        _shown = true;
+        _closing = false;
+        _contentShown = false;
+        _slideOffsetPx = 0;
+        _presentedAt = DateTime.UtcNow;
+        Reposition();
+        DevLog.Write("janela visível (vazia)");
+        Show();
+        Activate();
     }
 
     async Task InitWebViewAsync()
@@ -137,9 +208,12 @@ sealed class MixerForm : Form
 
             var userData = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "LeveMixer", "WebView2");
+                "Volum", "WebView2");
+            DevLog.Write("WebView2: criando ambiente");
             var env = await CoreWebView2Environment.CreateAsync(null, userData);
+            DevLog.Write("WebView2: ambiente pronto");
             await _web.EnsureCoreWebView2Async(env);
+            DevLog.Write("WebView2: controle pronto");
 
             var core = _web.CoreWebView2;
             var st = core.Settings;
@@ -152,13 +226,13 @@ sealed class MixerForm : Form
             core.NewWindowRequested += (_, e) => e.Handled = true;
             core.NavigationStarting += (_, e) =>
             {
-                if (!e.Uri.StartsWith("https://app.leve/", StringComparison.OrdinalIgnoreCase)) e.Cancel = true;
+                if (!e.Uri.StartsWith("https://app.volum/", StringComparison.OrdinalIgnoreCase)) e.Cancel = true;
             };
             core.WebMessageReceived += OnWebMessage;
 
-            // https://app.leve/  ->  pasta "wwwroot" ao lado do .exe
+            // https://app.volum/  ->  pasta "wwwroot" ao lado do .exe
             core.SetVirtualHostNameToFolderMapping(
-                "app.leve",
+                "app.volum",
                 Path.Combine(AppContext.BaseDirectory, "wwwroot"),
                 CoreWebView2HostResourceAccessKind.Allow);
 
@@ -166,14 +240,15 @@ sealed class MixerForm : Form
             await core.CallDevToolsProtocolMethodAsync("Network.enable", "{}");
             await core.CallDevToolsProtocolMethodAsync("Network.setCacheDisabled", "{\"cacheDisabled\":true}");
 
-            core.Navigate("https://app.leve/index.html");
+            DevLog.Write("carregando a interface");
+            core.Navigate("https://app.volum/index.html");
         }
         catch (Exception ex)
         {
             MessageBox.Show(
                 "Não foi possível iniciar a interface (WebView2).\n\n" +
                 "Verifique se o \"WebView2 Runtime\" está instalado (vem no Windows 11).\n\n" + ex.Message,
-                "LeveMixer", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                "Volum", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             Dispose();
         }
     }
@@ -184,6 +259,7 @@ sealed class MixerForm : Form
         _closing = false;
 
         _audio?.Dispose();
+        DevLog.Write("abrindo: lendo o áudio");
         _audio = new AudioService(_iconsSent);
 
         // A interface renderiza e responde com "resize"; só então a janela aparece.
@@ -193,6 +269,7 @@ sealed class MixerForm : Form
         _sync.Start();
         _meter.Start();
 
+        DevLog.Write("abrindo: estado enviado, esperando o tamanho");
         _ = FallbackPresentAsync();
     }
 
@@ -202,39 +279,32 @@ sealed class MixerForm : Form
         if (_pendingPresent && !IsDisposed)
         {
             _pendingPresent = false;
-            await PresentAsync();
+            Present();
         }
     }
 
-    async Task PresentAsync()
+    // O conteúdo está pronto: a interface toca a animação de entrada (CSS) dentro da janela já visível.
+    // A janela não desliza mais (mover a janela com o WebView a cada 10 ms engasgava a animação).
+    void Present()
     {
         if (IsDisposed) return;
-        float k = DeviceDpi / 96f;
-
-        var wa = Screen.FromPoint(Cursor.Position).WorkingArea;
-        _anchor = new Point(wa.Right - (int)(MarginDip * k), wa.Bottom - (int)(MarginDip * k));
-
-        _shown = true;
-        _slideOffsetPx = (int)(SlideDip * k);
-        _presentedAt = DateTime.UtcNow;
-        Reposition();
-        Show();
-        Activate();
-        Post(new { type = "open" });   // a interface toca a animação de entrada (CSS)
-
-        int from = _slideOffsetPx;
-        await Tween(OpenMs, EaseOutQuint, t => { _slideOffsetPx = (int)Math.Round(from * (1 - t)); Reposition(); });
-        _slideOffsetPx = 0;
-        Reposition();
+        if (!_shown) ShowShell();
+        _contentShown = true;
+        _contentAt = DateTime.UtcNow;
+        DevLog.Write("conteúdo visível");
+        Post(new { type = "open" });
     }
 
     public async Task CloseAnimatedAsync()
     {
         if (!_shown || _closing || IsDisposed) return;
         _closing = true;
+        _wantOpen = false;            // fechou durante o carregamento: não reabre quando terminar
+        _pendingPresent = false;
         _sync.Stop();
         _meter.Stop();
         Post(new { type = "close" });  // a interface toca a animação de saída (CSS)
+        if (_settings.LightMode) { HideNow(); return; }
 
         int to = (int)Math.Round(6 * DeviceDpi / 96f);
         await Tween(CloseMs, EaseInCubic, t => { _slideOffsetPx = (int)Math.Round(to * t); Reposition(); });
@@ -249,6 +319,7 @@ sealed class MixerForm : Form
         Hide();
         _shown = false;
         _closing = false;
+        _contentShown = false;
         _slideOffsetPx = 0;
         LastHiddenUtc = DateTime.UtcNow;
         _idle.Stop();
@@ -260,12 +331,12 @@ sealed class MixerForm : Form
 
     void OnResize(double heightDip)
     {
-        _heightDip = Math.Max(60, (int)Math.Ceiling(heightDip));
+        s_heightDip = Math.Max(60, (int)Math.Ceiling(heightDip));
         Reposition();
         if (_pendingPresent)
         {
             _pendingPresent = false;
-            _ = PresentAsync();
+            Present();
         }
     }
 
@@ -275,7 +346,7 @@ sealed class MixerForm : Form
         if (IsDisposed) return;
         float k = DeviceDpi / 96f;
         int w = (int)Math.Round(WidthDip * k);
-        int h = (int)Math.Round(_heightDip * k);
+        int h = (int)Math.Round(s_heightDip * k);
         SetBounds(_anchor.X - w, _anchor.Y - h + _slideOffsetPx, w, h);
     }
 
@@ -291,7 +362,6 @@ sealed class MixerForm : Form
         }
     }
 
-    static double EaseOutQuint(double t) => 1 - Math.Pow(1 - t, 5);
     static double EaseInCubic(double t) => t * t * t;
 
     // ---------- conversa com a interface ----------
@@ -305,12 +375,18 @@ sealed class MixerForm : Form
         catch (Exception ex) { Debug.WriteLine(ex); }
     }
 
-    void PostSettings() => Post(new
+    void PostSettings()
     {
-        type = "settings",
-        theme = _settings.Theme.ToString().ToLowerInvariant(),
-        autostart = AutoStart.IsEnabled
-    });
+        ApplyBackdrop();     // o tema do Windows pode ter mudado desde a última abertura
+        Post(new
+        {
+            type = "settings",
+            theme = _settings.Theme.ToString().ToLowerInvariant(),
+            autostart = AutoStart.IsEnabled,
+            glass = GlassSupported,
+            lite = _settings.LightMode
+        });
+    }
 
     void PushState()
     {
@@ -346,6 +422,7 @@ sealed class MixerForm : Form
             switch (root.GetProperty("type").GetString())
             {
                 case "ready":
+                    DevLog.Write("interface pronta (ready)");
                     _ready = true;
                     // Página (re)carregada, por exemplo com F5 no modo --dev: a interface perdeu
                     // os ícones e o estado, então tudo precisa ser enviado de novo.
@@ -355,7 +432,7 @@ sealed class MixerForm : Form
                     {
                         PostSettings();
                         PushState();
-                        Post(new { type = "open" });
+                        Present();
                     }
                     break;
 
@@ -380,7 +457,15 @@ sealed class MixerForm : Form
                     {
                         _settings.Theme = mode;
                         _settings.Save();
+                        ApplyBackdrop();
                     }
+                    break;
+
+                case "setLightMode":   // chave "Modo leve" nas configurações
+                    _settings.LightMode = root.GetProperty("enabled").GetBoolean();
+                    _settings.Save();
+                    _meter.Interval = _settings.LightMode ? MeterLiteMs : MeterMs;
+                    ApplyBackdrop();
                     break;
 
                 case "setAutostart":
@@ -389,6 +474,10 @@ sealed class MixerForm : Form
 
                 case "hide":   // botão minimizar: fecha com animação (também no modo --dev)
                     _ = CloseAnimatedAsync();
+                    break;
+
+                case "tick":   // som sutil ao mudar um volume
+                    TickSound.Play();
                     break;
             }
         }

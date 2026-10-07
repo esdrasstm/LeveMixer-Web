@@ -7,7 +7,7 @@ using System.Linq;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
 
-namespace LeveMixer;
+namespace Volum;
 
 // ---- Mensagens que o C# envia para a interface (viram JSON em camelCase) ----
 sealed record AppDto(string Id, string Name, float Volume, bool Muted, float Peak, bool Active, string? Icon);
@@ -29,6 +29,8 @@ sealed class AudioService : IDisposable
     }
 
     sealed record ProcInfo(string Id, string Name, string? Path);
+
+    static readonly uint OwnPid = (uint)Environment.ProcessId;
 
     readonly MMDeviceEnumerator _enumerator = new();
     readonly HashSet<string> _iconsSent;
@@ -120,7 +122,8 @@ sealed class AudioService : IDisposable
         for (int i = 0; i < col.Count; i++)
         {
             var s = col[i];
-            if (s.State == AudioSessionState.AudioSessionStateExpired)
+            // Sessões expiradas e a do próprio Volum (o som de "tick") não entram na lista
+            if (s.State == AudioSessionState.AudioSessionStateExpired || s.GetProcessID == OwnPid)
             {
                 s.Dispose();
                 continue;
@@ -177,36 +180,55 @@ sealed class AudioService : IDisposable
         else
         {
             string id = $"pid{pid}";
-            string name = $"Processo {pid}";
+            string fallback = $"Processo {pid}";
             string? path = null;
+            // Nomes que o app informa (sessão de áudio, descrição e produto do .exe)
+            var names = new List<string?>();
             try
             {
                 using var p = Process.GetProcessById((int)pid);
                 id = p.ProcessName.ToLowerInvariant();
-                name = char.ToUpperInvariant(p.ProcessName[0]) + p.ProcessName.Substring(1);
+                fallback = char.ToUpperInvariant(p.ProcessName[0]) + p.ProcessName.Substring(1);
                 try
                 {
                     var mm = p.MainModule;
                     path = mm?.FileName;
-                    var desc = mm?.FileVersionInfo.FileDescription;
-                    if (!string.IsNullOrWhiteSpace(desc)) name = desc.Trim();
+                    names.Add(mm?.FileVersionInfo.FileDescription);
+                    names.Add(mm?.FileVersionInfo.ProductName);
                 }
                 catch { /* processo elevado/protegido: fica só com o nome */ }
             }
             catch { /* processo já encerrou */ }
 
-            try
-            {
-                var dn = s.DisplayName;
-                if (!string.IsNullOrWhiteSpace(dn) && !dn.StartsWith("@")) name = dn.Trim();
-            }
-            catch { }
+            try { names.Add(s.DisplayName); } catch { }
 
-            pi = new ProcInfo(id, name, path);
+            pi = new ProcInfo(id, PickName(names, fallback), path);
         }
 
         _procCache[pid] = pi;
         return pi;
+    }
+
+    // Nomes genéricos que não dizem qual é o app
+    static readonly string[] GenericNames = { "Electron", "Chromium", "Java", "Node.js", "Host" };
+
+    /// <summary>
+    /// Regra do nome: entre os nomes que o app informa, fica o mais curto
+    /// ("Mozilla Firefox" / "Firefox" → "Firefox"; "A native Spotify client" / "Spotify" → "Spotify").
+    /// Limpa ®, ™ e ©; ignora nomes de recurso ("@...") e genéricos; sem nenhum, usa o nome do processo.
+    /// </summary>
+    static string PickName(IEnumerable<string?> candidates, string fallback)
+    {
+        string? best = null;
+        foreach (var raw in candidates)
+        {
+            if (string.IsNullOrWhiteSpace(raw) || raw.TrimStart().StartsWith("@")) continue;
+            var n = string.Join(' ', raw.Replace("®", "").Replace("™", "").Replace("©", "")
+                                        .Split(' ', StringSplitOptions.RemoveEmptyEntries));
+            if (n.Length < 2 || GenericNames.Contains(n, StringComparer.OrdinalIgnoreCase)) continue;
+            if (best == null || n.Length < best.Length) best = n;
+        }
+        return best ?? fallback;
     }
 
     static string? IconDataUri(string? path)

@@ -3,11 +3,11 @@ using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
 
-namespace LeveMixer;
+namespace Volum;
 
 static class Program
 {
-    /// <summary>LeveMixer.exe --dev : habilita F12 (DevTools) e não fecha ao perder o foco.</summary>
+    /// <summary>Volum.exe --dev : habilita F12 (DevTools), abre o mixer ao iniciar e não fecha ao perder o foco.</summary>
     internal static bool DevMode { get; private set; }
 
     [STAThread]
@@ -20,7 +20,7 @@ static class Program
         Application.SetCompatibleTextRenderingDefault(false);
 
         // Uma única instância por vez
-        using var mutex = new Mutex(true, "LeveMixer_SingleInstance", out bool created);
+        using var mutex = new Mutex(true, "Volum_SingleInstance", out bool created);
         if (!created) return;
 
         // Primeira execução: já deixa para abrir com o Windows (dá para desligar nas configurações)

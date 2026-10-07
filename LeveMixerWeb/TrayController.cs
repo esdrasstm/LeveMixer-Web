@@ -1,7 +1,7 @@
 using System;
 using System.Windows.Forms;
 
-namespace LeveMixer;
+namespace Volum;
 
 /// <summary>Ícone da bandeja + abre/fecha o mixer.</summary>
 sealed class TrayController : IDisposable
@@ -43,7 +43,7 @@ sealed class TrayController : IDisposable
         _icon = new NotifyIcon
         {
             Icon = IconFactory.Create(),
-            Text = "Mixer de volume",
+            Text = "Volum",
             Visible = true,
             ContextMenuStrip = menu
         };
@@ -51,13 +51,26 @@ sealed class TrayController : IDisposable
         {
             if (e.Button == MouseButtons.Left) Toggle();
         };
+
+        // --dev: abre o mixer assim que o app inicia (agiliza os testes do visual)
+        if (Program.DevMode)
+        {
+            var t = new Timer { Interval = 300 };
+            t.Tick += (_, _) => { t.Dispose(); Toggle(); };
+            t.Start();
+        }
     }
 
     void Toggle()
     {
+        DevLog.Write($"clique na bandeja (form={(_form == null || _form.IsDisposed ? "nenhum" : _form.IsOpen ? "aberto" : "escondido")})");
         if (_form != null && !_form.IsDisposed)
         {
-            if (_form.IsOpen) { _ = _form.CloseAnimatedAsync(); return; }
+            if (_form.IsOpen)
+            {
+                if (_form.CanCloseByClick) _ = _form.CloseAnimatedAsync();
+                return;
+            }
 
             // Clicar no ícone tira o foco do mixer (ele já começa a fechar sozinho);
             // sem esse intervalo ele fecharia e reabriria na hora.
