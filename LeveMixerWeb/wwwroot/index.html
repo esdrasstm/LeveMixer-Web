@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="system">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LeveMixer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <main id="card" class="card">
+
+    <!-- Cabeçalho: logo + botão de configurações -->
+    <header class="header">
+      <!-- Para usar sua logo: troque este <svg> por <img class="logo" src="logo.png" alt=""> -->
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="15.5" cy="15.5" r="15.5" fill="#7c5cff"/>
+        <g stroke="#fff" stroke-width="2.5" stroke-linecap="round">
+          <line x1="9"  y1="7" x2="9"  y2="25"/>
+          <line x1="16" y1="7" x2="16" y2="25"/>
+          <line x1="23" y1="7" x2="23" y2="25"/>
+        </g>
+        <g fill="#fff">
+          <circle cx="9"  cy="20" r="3.5"/>
+          <circle cx="16" cy="11" r="3.5"/>
+          <circle cx="23" cy="17" r="3.5"/>
+        </g>
+      </svg>
+
+      <button id="settingsBtn" class="icon-btn small" title="Configurações" aria-expanded="false">
+        <svg class="chevron" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M3 6l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </header>
+
+    <!-- Caixa de configurações (abre para baixo) -->
+    <section id="settings" class="settings" hidden>
+      <div class="label">Tema</div>
+      <div class="segmented" role="radiogroup" aria-label="Tema">
+        <button data-mode="system" role="radio" aria-checked="true">Sistema</button>
+        <button data-mode="dark"   role="radio" aria-checked="false">Escuro</button>
+        <button data-mode="light"  role="radio" aria-checked="false">Claro</button>
+      </div>
+
+      <div class="setting-row">
+        <span>Iniciar com o Windows</span>
+        <label class="switch">
+          <input id="autostart" type="checkbox">
+          <span></span>
+        </label>
+      </div>
+
+      <!-- Novas configurações entram aqui -->
+    </section>
+
+    <!-- Volume geral -->
+    <section id="master" class="master"></section>
+
+    <!-- Apps -->
+    <section id="apps" class="apps"></section>
+    <p id="empty" class="empty" hidden>Nenhum app usando áudio agora</p>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
