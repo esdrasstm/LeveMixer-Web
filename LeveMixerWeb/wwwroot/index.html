@@ -34,7 +34,7 @@
       </svg>
       <span class="brand">Volum</span>
 
-      <button id="settingsBtn" class="icon-btn" title="Configurações" aria-expanded="false">
+      <button id="settingsBtn" class="icon-btn" title="Configurações" data-i18n-title="settings" aria-expanded="false">
         <svg class="chevron" viewBox="0 0 16 16" aria-hidden="true">
           <path d="M3.5 6l4.5 4.5L12.5 6" fill="none" stroke="currentColor" stroke-width="1.6"
                 stroke-linecap="round" stroke-linejoin="round"/>
@@ -42,7 +42,7 @@
       </button>
 
       <!-- Minimizar: esconde o mixer (volta para a bandeja) -->
-      <button id="minimizeBtn" class="icon-btn" title="Minimizar">
+      <button id="minimizeBtn" class="icon-btn" title="Minimizar" data-i18n-title="minimize">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <path d="M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
         </svg>
@@ -54,15 +54,23 @@
       <div class="settings-inner">
         <div class="panel settings-panel">
 
-          <div class="label">Tema</div>
-          <div class="segmented" role="radiogroup" aria-label="Tema">
-            <button data-mode="system" role="radio" aria-checked="true">Sistema</button>
-            <button data-mode="dark"   role="radio" aria-checked="false">Escuro</button>
-            <button data-mode="light"  role="radio" aria-checked="false">Claro</button>
+          <div class="label" data-i18n="theme">Tema</div>
+          <div class="segmented" id="themeSeg" role="radiogroup" aria-label="Tema" data-i18n-aria="theme">
+            <button data-value="system" role="radio" aria-checked="true" data-i18n="system">Sistema</button>
+            <button data-value="dark"   role="radio" aria-checked="false" data-i18n="dark">Escuro</button>
+            <button data-value="light"  role="radio" aria-checked="false" data-i18n="light">Claro</button>
+          </div>
+
+          <!-- Os nomes dos idiomas ficam sempre no próprio idioma -->
+          <div class="label label-gap" data-i18n="language">Idioma</div>
+          <div class="segmented" id="langSeg" role="radiogroup" aria-label="Idioma" data-i18n-aria="language">
+            <button data-value="pt" role="radio" aria-checked="true">Português</button>
+            <button data-value="en" role="radio" aria-checked="false">English</button>
+            <button data-value="es" role="radio" aria-checked="false">Español</button>
           </div>
 
           <div class="setting-row">
-            <span class="setting-text">Iniciar com o Windows</span>
+            <span class="setting-text" data-i18n="autostart">Iniciar com o Windows</span>
             <label class="switch">
               <input id="autostart" type="checkbox">
               <span></span>
@@ -71,8 +79,8 @@
 
           <div class="setting-row">
             <span class="setting-text">
-              Modo leve
-              <small>Desliga vidro, brilhos e animações</small>
+              <span data-i18n="lite">Modo leve</span>
+              <small data-i18n="liteHint">Desliga vidro, brilhos e animações</small>
             </span>
             <label class="switch">
               <input id="lite" type="checkbox">
@@ -85,16 +93,35 @@
       </div>
     </section>
 
-    <!-- Volume geral -->
-    <section id="master" class="panel master"></section>
+    <!-- Volume geral + microfone (a linha do microfone some se não houver microfone) -->
+    <section class="panel master">
+      <div id="master"></div>
+      <div id="mic" class="mic" hidden>
+        <div id="micRow"></div>
+        <!-- Escolher o microfone: nome do atual, discreto; o clique abre a lista dos conectados -->
+        <div class="mic-picker">
+          <button id="micPickBtn" class="mic-current" aria-expanded="false"
+                  title="Escolher microfone" data-i18n-title="micPick">
+            <span id="micCurrent"></span>
+            <svg class="chevron" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M4 6.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div id="micList" class="mic-list" inert>
+            <div class="mic-list-inner" role="listbox"></div>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- Apps -->
     <div class="section-label">
-      <span>Aplicativos</span>
+      <span data-i18n="apps">Aplicativos</span>
       <span id="appCount" class="count">0</span>
     </div>
     <section id="apps" class="apps"></section>
-    <p id="empty" class="empty" hidden>Nenhum app usando áudio agora</p>
+    <p id="empty" class="empty" hidden data-i18n="empty">Nenhum app usando áudio agora</p>
 
   </main>
 

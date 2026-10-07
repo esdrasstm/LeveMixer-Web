@@ -74,6 +74,34 @@ static class MemoryTrim
     }
 }
 
+/// <summary>
+/// Textos do lado C# (menu da bandeja e avisos) nos 3 idiomas.
+/// Os textos da interface ficam no app.js (I18N). Português é sempre o padrão.
+/// </summary>
+static class Strings
+{
+    public static readonly string[] Languages = { "pt", "en", "es" };
+
+    static readonly System.Collections.Generic.Dictionary<string, string[]> Texts = new()
+    {
+        //                 pt                          en                           es
+        ["autostart"] = new[] { "Iniciar com o Windows", "Start with Windows", "Iniciar con Windows" },
+        ["exit"]      = new[] { "Sair", "Exit", "Salir" },
+        ["webviewError"] = new[]
+        {
+            "Não foi possível iniciar a interface (WebView2).\n\nVerifique se o \"WebView2 Runtime\" está instalado (vem no Windows 11).",
+            "Could not start the interface (WebView2).\n\nCheck that the \"WebView2 Runtime\" is installed (it comes with Windows 11).",
+            "No se pudo iniciar la interfaz (WebView2).\n\nVerifica que el \"WebView2 Runtime\" esté instalado (viene con Windows 11)."
+        },
+    };
+
+    public static string Normalize(string? lang) =>
+        Array.IndexOf(Languages, lang) >= 0 ? lang! : "pt";
+
+    public static string Get(string? lang, string key) =>
+        Texts[key][Array.IndexOf(Languages, Normalize(lang))];
+}
+
 /// <summary>Só no modo --dev: anota tempos em %TEMP%\Volum-dev.log (para medir a abertura do mixer).</summary>
 static class DevLog
 {

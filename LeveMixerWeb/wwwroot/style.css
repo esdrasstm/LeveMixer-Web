@@ -343,6 +343,70 @@ button:focus-visible, input:focus-visible + span { outline: 2px solid var(--acce
 .master .row { padding: 10px 8px 10px 12px; }
 .master .row-name { font-weight: 600; }
 
+/* Microfone: abaixo do volume geral, separado por um fio */
+.mic[hidden] { display: none; }
+.mic { border-top: 1px solid var(--border); margin: 0 8px 0 12px; }   /* alinha com a linha de cima */
+.mic .row { padding-left: 0; padding-right: 0; }
+.mic .row { padding-bottom: 2px; }
+
+/* Escolha do microfone: texto pequeno alinhado com o slider (ícone 26px + espaço 12px) */
+.mic-picker { padding: 0 0 8px 38px; }
+.mic-current {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 6px 2px 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--subtext);
+  font-size: 11px;
+  cursor: pointer;
+  transition: color .18s ease;
+}
+.mic-current:hover, .mic-current[aria-expanded="true"] { color: var(--text); }
+.mic-current span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mic-current .chevron { flex: none; width: 12px; height: 12px; }
+
+/* A lista abre deslizando (mesma técnica das configurações) */
+.mic-list {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows .3s var(--spring);
+}
+.mic-list.open { grid-template-rows: 1fr; }
+.mic-list-inner {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+.mic-list.open .mic-list-inner { opacity: 1; padding-top: 4px; }
+
+.mic-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--subtext);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease;
+}
+.mic-option:hover { background: var(--surface-hover); color: var(--text); }
+.mic-option[aria-selected="true"] { color: var(--text); }
+.mic-option span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mic-option svg { flex: none; width: 14px; height: 14px; color: var(--accent-2); visibility: hidden; }
+.mic-option[aria-selected="true"] svg { visibility: visible; }
+
+.label-gap { margin-top: 14px; }
+
 /* ---------- Lista de apps ---------- */
 .section-label {
   display: flex;

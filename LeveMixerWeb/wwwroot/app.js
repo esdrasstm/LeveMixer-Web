@@ -3,26 +3,73 @@
    Fala com o C# por mensagens JSON:
      C# -> JS : settings | state | peaks | open | close
      JS -> C# : ready | resize | setVolume | setMute | setTheme | setAutostart
-                | setLightMode | hide | tick
+                | setLightMode | setLanguage | hide | tick
    ========================================================= */
 (() => {
   'use strict';
 
   const MASTER = '__master';
+  const MIC = '__mic';
+  const isFixed = (id) => id === MASTER || id === MIC;   // linhas fixas do painel de cima
   const $ = (id) => document.getElementById(id);
+
+  /* ---------------- Idiomas ----------------
+     Português é o padrão. Para traduzir um texto novo: coloque data-i18n="chave" no HTML
+     (ou data-i18n-title para a dica do mouse) e a chave nos três idiomas abaixo. */
+  const I18N = {
+    pt: {
+      settings: 'Configurações', minimize: 'Minimizar', theme: 'Tema', language: 'Idioma',
+      system: 'Sistema', dark: 'Escuro', light: 'Claro',
+      autostart: 'Iniciar com o Windows', lite: 'Modo leve', liteHint: 'Desliga vidro, brilhos e animações',
+      apps: 'Aplicativos', empty: 'Nenhum app usando áudio agora',
+      master: 'Volume geral', mic: 'Microfone', systemSounds: 'Sons do sistema',
+      mute: 'Silenciar', unmute: 'Ativar som', micMute: 'Desligar microfone', micUnmute: 'Ligar microfone',
+      micPick: 'Escolher microfone',
+    },
+    en: {
+      settings: 'Settings', minimize: 'Minimize', theme: 'Theme', language: 'Language',
+      system: 'System', dark: 'Dark', light: 'Light',
+      autostart: 'Start with Windows', lite: 'Lite mode', liteHint: 'Turns off glass, glow and animations',
+      apps: 'Apps', empty: 'No apps playing audio right now',
+      master: 'Master volume', mic: 'Microphone', systemSounds: 'System sounds',
+      mute: 'Mute', unmute: 'Unmute', micMute: 'Mute microphone', micUnmute: 'Unmute microphone',
+      micPick: 'Choose microphone',
+    },
+    es: {
+      settings: 'Configuración', minimize: 'Minimizar', theme: 'Tema', language: 'Idioma',
+      system: 'Sistema', dark: 'Oscuro', light: 'Claro',
+      autostart: 'Iniciar con Windows', lite: 'Modo ligero', liteHint: 'Desactiva vidrio, brillos y animaciones',
+      apps: 'Aplicaciones', empty: 'Ninguna app está reproduciendo audio',
+      master: 'Volumen general', mic: 'Micrófono', systemSounds: 'Sonidos del sistema',
+      mute: 'Silenciar', unmute: 'Activar sonido', micMute: 'Silenciar micrófono', micUnmute: 'Activar micrófono',
+      micPick: 'Elegir micrófono',
+    },
+  };
+  let lang = 'pt';
+  const t = (key) => (I18N[lang] && I18N[lang][key]) || I18N.pt[key] || key;
+
+  // Linhas do sistema: o nome vem da tradução, não do C#
+  const SYSTEM_NAMES = { __master: 'master', __mic: 'mic', __system: 'systemSounds' };
+  const displayName = (id, name) => (SYSTEM_NAMES[id] ? t(SYSTEM_NAMES[id]) : name);
   const post = (msg) => window.chrome.webview.postMessage(msg);
 
   const card = $('card');
   const appsEl = $('apps');
   const masterEl = $('master');
+  const micEl = $('mic');
+  const micRowEl = $('micRow');
+  const micPickBtn = $('micPickBtn');
+  const micCurrentEl = $('micCurrent');
+  const micListEl = $('micList');
+  const micListInner = micListEl.firstElementChild;
   const emptyEl = $('empty');
   const settingsEl = $('settings');
   const settingsBtn = $('settingsBtn');
   const autostartEl = $('autostart');
   const liteEl = $('lite');
   const appCountEl = $('appCount');
-  const segmentedEl = document.querySelector('.segmented');
-  const segButtons = [...segmentedEl.querySelectorAll('button')];
+  const themeSeg = $('themeSeg');
+  const langSeg = $('langSeg');
   const root = document.documentElement;
   const prefersLight = window.matchMedia('(prefers-color-scheme: light)');
 
@@ -34,6 +81,14 @@
     '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/>' +
     '<path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" ' +
     'stroke-width="1.8" stroke-linecap="round"/></svg>';
+  const ICON_MIC =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">' +
+    '<rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" stroke="none"/>' +
+    '<path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21"/></svg>';
+  const ICON_MIC_OFF =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">' +
+    '<rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" stroke="none" opacity=".45"/>' +
+    '<path d="M5.5 11a6.5 6.5 0 0010.6 5M18.5 11a6.4 6.4 0 01-.5 2.5M12 17.5V21M4 4l16 16"/></svg>';
 
   // Ícones das linhas do sistema (não têm .exe de onde tirar o ícone)
   const SYSTEM_ICONS = {
@@ -48,6 +103,11 @@
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
       'stroke-linecap="round" stroke-linejoin="round">' +
       '<path d="M6 16.5V11a6 6 0 0112 0v5.5l1.5 1.5h-15z"/><path d="M10 20.5a2.2 2.2 0 004 0"/></svg>',
+    // Microfone: o microfone em traço
+    __mic:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="8.5" y="2.5" width="7" height="12" rx="3.5"/><path d="M5 11a7 7 0 0014 0M12 18v3.5M8.5 21.5h7"/></svg>',
   };
 
   const rows = new Map();       // id -> { el, slider, ... }
@@ -70,7 +130,7 @@
         '</div>' +
         '<div class="meter"><div class="meter-fill"></div></div>' +
       '</div>' +
-      '<button class="icon-btn mute" title="Silenciar"></button>';
+      '<button class="icon-btn mute"></button>';
 
     const r = {
       id, el, name,
@@ -87,7 +147,7 @@
       iconSrc: undefined,                // diferente de null: o primeiro setIcon sempre desenha
     };
 
-    r.nameEl.textContent = name;
+    r.nameEl.textContent = displayName(id, name);
     setIcon(r, iconCache.get(id));
     updateMuteUi(r);
 
@@ -152,12 +212,15 @@
   }
 
   function updateMuteUi(r) {
-    r.mute.innerHTML = r.muted ? ICON_MUTE : ICON_VOL;
+    const mic = r.id === MIC;
+    const html = r.muted ? (mic ? ICON_MIC_OFF : ICON_MUTE) : (mic ? ICON_MIC : ICON_VOL);
+    if (r.muteHtml !== html) { r.mute.innerHTML = html; r.muteHtml = html; }   // só troca se mudou
+    r.mute.title = t(mic ? (r.muted ? 'micUnmute' : 'micMute') : (r.muted ? 'unmute' : 'mute'));
     r.el.classList.toggle('muted', r.muted);
   }
 
   function updateRow(r, d, dim) {
-    if (d.name && d.name !== r.name) { r.name = d.name; r.nameEl.textContent = d.name; }
+    if (d.name && d.name !== r.name) { r.name = d.name; r.nameEl.textContent = displayName(r.id, d.name); }
     if (d.icon) { iconCache.set(r.id, d.icon); setIcon(r, d.icon); }
     r.muted = !!d.muted;
     updateMuteUi(r);
@@ -175,15 +238,27 @@
     // Volume geral
     let master = rows.get(MASTER);
     if (!master) {
-      master = createRow(MASTER, 'Volume geral');
+      master = createRow(MASTER, '');
       masterEl.appendChild(master.el);
     }
     updateRow(master, { volume: s.master.volume, muted: s.master.muted }, false);
 
+    // Microfone padrão do Windows (o slider é o ganho). Sem microfone, a linha some.
+    let mic = rows.get(MIC);
+    if (s.mic) {
+      if (!mic) {
+        mic = createRow(MIC, '');
+        micRowEl.appendChild(mic.el);
+      }
+      updateRow(mic, { volume: s.mic.volume, muted: s.mic.muted }, false);
+      updateMicPicker(s.mic);
+    }
+    micEl.hidden = !s.mic;
+
     // Apps
     const ids = s.apps.map((a) => a.id);
     for (const [id, r] of [...rows]) {
-      if (id !== MASTER && !ids.includes(id)) { r.el.remove(); rows.delete(id); }
+      if (!isFixed(id) && !ids.includes(id)) { r.el.remove(); rows.delete(id); }
     }
     for (const a of s.apps) {
       const r = rows.get(a.id) || createRow(a.id, a.name);
@@ -205,6 +280,52 @@
     reportHeight();
   }
 
+  /* ---------------- Escolha do microfone ---------------- */
+
+  const ICON_CHECK =
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" ' +
+    'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  let micListSig = '';
+
+  // Mostra o microfone atual e (re)monta a lista só quando os microfones conectados mudam
+  function updateMicPicker(m) {
+    micCurrentEl.textContent = m.device;
+    const sig = m.id + '|' + m.devices.map((d) => d.id + '=' + d.name).join('|');
+    if (sig === micListSig) return;
+    micListSig = sig;
+
+    micListInner.textContent = '';
+    for (const d of m.devices) {
+      const b = document.createElement('button');
+      b.className = 'mic-option';
+      b.setAttribute('role', 'option');
+      b.setAttribute('aria-selected', String(d.id === m.id));
+      b.innerHTML = '<span></span>' + ICON_CHECK;
+      b.firstChild.textContent = d.name;
+      b.title = d.name;
+      b.addEventListener('click', () => {
+        // Resposta imediata na tela; o C# troca o padrão do Windows e manda o estado novo
+        micListInner.querySelectorAll('.mic-option').forEach((o) => o.setAttribute('aria-selected', String(o === b)));
+        micCurrentEl.textContent = d.name;
+        setMicListOpen(false);
+        post({ type: 'setMicDevice', id: d.id });
+      });
+      micListInner.appendChild(b);
+    }
+  }
+
+  function setMicListOpen(open) {
+    micListEl.classList.toggle('open', open);
+    micListEl.inert = !open;
+    micPickBtn.setAttribute('aria-expanded', String(open));
+  }
+  micPickBtn.addEventListener('click', () => setMicListOpen(!micListEl.classList.contains('open')));
+
+  // Medidor do microfone: ignora o chiado de fundo (silêncio = barra parada) e,
+  // como a voz tem nível baixo, usa a raiz para a barra crescer bem visível ao falar.
+  const MIC_GATE = 0.01;   // aumente se a barra se mexer sem você falar
+  const micLevel = (raw) => (raw > MIC_GATE ? Math.sqrt((raw - MIC_GATE) / (1 - MIC_GATE)) : 0);
+
   function applyPeaks(p) {
     const smooth = (r, raw) => {
       r.peak = raw > r.peak ? raw : r.peak * 0.85;   // sobe rápido, desce suave
@@ -212,10 +333,13 @@
     };
     const m = rows.get(MASTER);
     if (m) smooth(m, p.master);
-    for (const [id, r] of rows) if (id !== MASTER) smooth(r, p.apps[id] || 0);
+    const mic = rows.get(MIC);
+    if (mic) smooth(mic, micLevel(p.mic || 0));
+    for (const [id, r] of rows) if (!isFixed(id)) smooth(r, p.apps[id] || 0);
   }
 
   function applySettings(s) {
+    setLanguage(s.language || 'pt');
     setTheme(s.theme);
     glassSupported = !!s.glass;
     setLite(!!s.lite);
@@ -224,6 +348,7 @@
     setSettingsOpen(false);                         // sempre abre com as configurações recolhidas
     void settingsEl.offsetHeight;
     settingsEl.classList.remove('instant');
+    setMicListOpen(false);                          // e com a lista de microfones fechada
     forceResize = true;                             // o C# espera um "resize" para mostrar a janela
   }
 
@@ -246,14 +371,33 @@
 
   /* ---------------- Configurações ---------------- */
 
+  // Marca a opção escolhida num seletor (tema ou idioma); a pílula desliza até ela
+  function selectSegment(seg, value) {
+    [...seg.querySelectorAll('button')].forEach((b, i) => {
+      const on = b.dataset.value === value;
+      b.setAttribute('aria-checked', String(on));
+      if (on) seg.style.setProperty('--seg-i', i);
+    });
+  }
+
   function setTheme(mode) {
     root.dataset.theme = mode;
-    segButtons.forEach((b, i) => {
-      const on = b.dataset.mode === mode;
-      b.setAttribute('aria-checked', String(on));
-      if (on) segmentedEl.style.setProperty('--seg-i', i);   // a pílula desliza até aqui
-    });
+    selectSegment(themeSeg, mode);
     applyScheme();
+  }
+
+  // Troca todos os textos da interface para o idioma escolhido
+  function setLanguage(value) {
+    lang = I18N[value] ? value : 'pt';
+    root.lang = { pt: 'pt-BR', en: 'en', es: 'es' }[lang];
+    selectSegment(langSeg, lang);
+    document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-title]').forEach((el) => { el.title = t(el.dataset.i18nTitle); });
+    document.querySelectorAll('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
+    rows.forEach((r) => {
+      if (SYSTEM_NAMES[r.id]) r.nameEl.textContent = displayName(r.id, r.name);
+      updateMuteUi(r);
+    });
   }
 
   // Tema efetivo (claro/escuro): resolve o "Sistema" e acompanha a troca do Windows ao vivo
@@ -288,9 +432,14 @@
     setSettingsOpen(!settingsEl.classList.contains('open'));
   });
 
-  segButtons.forEach((b) => b.addEventListener('click', () => {
-    setTheme(b.dataset.mode);
-    post({ type: 'setTheme', mode: b.dataset.mode });
+  themeSeg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+    setTheme(b.dataset.value);
+    post({ type: 'setTheme', mode: b.dataset.value });
+  }));
+
+  langSeg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+    setLanguage(b.dataset.value);
+    post({ type: 'setLanguage', lang: b.dataset.value });
   }));
 
   $('minimizeBtn').addEventListener('click', () => post({ type: 'hide' }));

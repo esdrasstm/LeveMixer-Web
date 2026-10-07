@@ -19,22 +19,24 @@ C# (WinForms + WebView2) cuida da lógica e da janela. A interface é HTML/CSS/J
 | `TrayController.cs` | Ícone da bandeja, menu (iniciar com o Windows / sair), abre e fecha o mixer |
 | `MixerForm.cs` | Janela sem borda com WebView2; animações de abrir/fechar; ponte C# ⇄ JS |
 | `AudioService.cs` | Toda a lógica de áudio (NAudio / Core Audio). Não conhece a interface |
-| `Settings.cs` | `AppSettings` (tema, primeira execução, modo leve) salvo em `%AppData%\Volum\settings.json`; se não existir, lê o antigo `%AppData%\LeveMixer` |
-| `Helpers.cs` | `AutoStart` (registro do Windows), `MemoryTrim`, `TickSound` (som do slider), `IconFactory` (ícone da bandeja por código) |
+| `Settings.cs` | `AppSettings` (tema, primeira execução, modo leve, idioma) salvo em `%AppData%\Volum\settings.json`; se não existir, lê o antigo `%AppData%\LeveMixer` |
+| `Helpers.cs` | `AutoStart` (registro do Windows), `MemoryTrim`, `TickSound` (som do slider), `Strings` (textos do C# em 3 idiomas), `IconFactory` (ícone da bandeja por código) |
 | `wwwroot/index.html` | Estrutura da interface |
 | `wwwroot/style.css` | Visual: temas por variáveis CSS, animações |
 | `wwwroot/app.js` | Comportamento da interface e mensagens com o C# |
 
 ### Mensagens (JSON) entre C# e JS
-- **C# → JS:** `settings` (tema, auto-início, `glass` = Windows suporta vidro, `lite` = modo leve), `state` (volumes e lista de apps, a cada 1 s), `peaks` (medidores, a cada 60 ms), `open`, `close`
-- **JS → C#:** `ready`, `resize` (altura do conteúdo), `setVolume`, `setMute`, `setTheme`, `setAutostart`, `setLightMode`, `hide` (botão minimizar), `tick` (som ao mudar volume)
-- IDs: `__master` (volume geral), `__system` (sons do sistema), demais = nome do processo em minúsculas (apps com vários processos, como o Chrome, viram uma linha só).
+- **C# → JS:** `settings` (tema, auto-início, `glass` = Windows suporta vidro, `lite` = modo leve, `language`), `state` (volumes, microfone e lista de apps, a cada 1 s), `peaks` (medidores, incluindo o do microfone, a cada 60 ms), `open`, `close`
+- **JS → C#:** `ready`, `resize` (altura do conteúdo), `setVolume`, `setMute`, `setTheme`, `setAutostart`, `setLightMode`, `setLanguage`, `setMicDevice` (escolher o microfone), `hide` (botão minimizar), `tick` (som ao mudar volume)
+- IDs: `__master` (volume geral), `__mic` (microfone), `__system` (sons do sistema), demais = nome do processo em minúsculas (apps com vários processos, como o Chrome, viram uma linha só).
 
 ## Decisões importantes (não desfazer sem motivo)
 - **Janela redimensionada pelo conteúdo**: o JS mede a altura do `#card` e manda `resize`; o C# ajusta a janela ancorada no canto inferior direito. A largura é fixa (360 px) e precisa bater entre `MixerForm.cs` (`WidthDip`) e `style.css` (`.card { width }`).
 - **Sem `Form.Opacity`**: o WebView2 pode não renderizar em janelas com opacidade. A animação de entrada é só CSS (conteúdo com fade e zoom, `.enter`/`.leave`); a janela **não desliza** ao abrir (mover a janela com o WebView a cada 10 ms engasgava). Ao fechar ainda desce 6 px (`Tween`).
 - **Abertura instantânea**: no clique, `ShowShell()` mostra a janela vazia (vidro/fundo sólido) na hora, na última altura conhecida (`s_heightDip`); o conteúdo entra com a animação quando a interface responde. A frio (WebView2 descartado) o WebView2 leva ~1 s para iniciar e ocupa ~280 MB enquanto vivo, por isso ele não fica carregado o tempo todo. Um clique na bandeja só fecha depois que o conteúdo apareceu (`CanCloseByClick`).
 - **Nome dos apps** (`PickName` em AudioService.cs): entre o nome da sessão de áudio, a descrição e o produto do .exe, fica o **mais curto**; limpa ®/™/©, ignora `@...` e nomes genéricos (Electron etc.); sem nenhum, usa o nome do processo.
+- **Microfone**: é o microfone padrão do Windows (`DataFlow.Capture`, `Role.Console`); o slider é o ganho (`AudioEndpointVolume`, o mesmo das configurações de som do Windows). Fica no painel de cima, abaixo do volume geral, e some se não houver microfone. O Windows só mede o nível do microfone enquanto algum app o ouve; por isso o `AudioService` abre um `WasapiCapture` (áudio descartado) **só com a janela aberta e fora do modo leve** — efeito colateral: o Windows mostra "microfone em uso" pelo Volum nesse período. No JS, o medidor do microfone tem portão de ruído (`MIC_GATE`) e curva de raiz para a voz aparecer. Abaixo do ganho, o nome do microfone atual abre a lista dos conectados (`state.mic.devices`; o JS só remonta a lista quando ela muda). Escolher um manda `setMicDevice` e o C# o torna o **padrão do Windows** em todos os papéis (Console, Multimedia, Communications) via `IPolicyConfig` (interface interna do Windows, a mesma do EarTrumpet/SoundSwitch; classe `DefaultDevice` em AudioService.cs).
+- **Idiomas** (pt, en, es; **português é sempre o padrão**): textos da interface no objeto `I18N` do `app.js`, aplicados por `data-i18n` / `data-i18n-title` / `data-i18n-aria` no HTML. Nomes das linhas do sistema (`__master`, `__mic`, `__system`) vêm da tradução, não do C#. Textos do C# (menu da bandeja, aviso do WebView2) ficam em `Strings` (Helpers.cs); o menu da bandeja relê o idioma toda vez que abre. Os nomes dos idiomas no seletor ficam sempre no próprio idioma.
 - **`DevLog`** (Helpers.cs): só no `--dev`, anota os tempos da abertura em `%TEMP%\Volum-dev.log`.
 - **Economia de recursos**: timers e objetos COM de áudio só existem com a janela visível (`AudioService` é criado ao abrir e descartado ao fechar). O WebView fica vivo 45 s depois de fechar (reabrir rápido) e então o `MixerForm` é descartado.
 - **Glassmorphism**: no Windows 11 22H2+ (build 22621) a janela usa o acrílico nativo do DWM (`DWMWA_SYSTEMBACKDROP_TYPE`, frame estendido em toda a janela, `BackColor` preto e WebView2 transparente). O tom claro/escuro do acrílico segue o tema (`DWMWA_USE_IMMERSIVE_DARK_MODE`). O C# manda `glass: true` em `settings` e o JS põe a classe `.glass` no `<html>`; o CSS usa cores `rgba` por cima. O JS também resolve o tema efetivo em `data-scheme="dark|light"` (o CSS usa só ele).
@@ -44,7 +46,8 @@ C# (WinForms + WebView2) cuida da lógica e da janela. A interface é HTML/CSS/J
 - **Cantos e sombra**: DWM (`DWMWA_WINDOW_CORNER_PREFERENCE` e `DwmExtendFrameIntoClientArea`). No Windows 10 os cantos ficam retos.
 - **`wwwroot` fica ao lado do .exe** (mapeado em `https://app.volum/`), com cache desligado, para editar o visual sem recompilar.
 - **Navegação restrita** a `https://app.volum/`; novas janelas bloqueadas.
-- **`--dev`**: `Volum.exe --dev` liga F12 (DevTools), abre o mixer ao iniciar e impede o fechamento ao perder o foco.
+- **`--dev`**: `Volum.exe --dev` liga F12 (DevTools), abre o mixer ao iniciar e impede o fechamento ao perder o foco. Também usa a `wwwroot` **do projeto** (não a cópia em `bin`) e recarrega a interface sozinho ao salvar qualquer arquivo dela (`FileSystemWatcher`, espera 200 ms).
+- **Nada pesado a cada segundo**: o `state` roda a cada 1 s na thread da interface. Ler nomes de dispositivos custa ~130 ms, então a lista de microfones fica guardada e só é refeita quando o Windows avisa de mudança (`IMMNotificationClient`, classe `DeviceWatcher`). Ligar/desligar a escuta do microfone (~0,5 s) roda em segundo plano. Use o `DevLog` para medir antes de colocar algo novo no `Snapshot()`.
 - **Auto-início**: chave `HKCU\...\Run` com o nome `Volum`; não registra quando o processo é o `dotnet.exe` (`dotnet run`); corrige o caminho a cada abertura e troca a chave antiga `LeveMixer`, se existir.
 - **Nome**: o app se chama **Volum** (exe, namespace, projeto `Volum.csproj`, host `app.volum`). As pastas e o repositório no GitHub ainda se chamam LeveMixer.
 

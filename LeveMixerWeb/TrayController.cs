@@ -14,7 +14,7 @@ sealed class TrayController : IDisposable
     {
         var menu = new ContextMenuStrip();
 
-        var autoStart = new ToolStripMenuItem("Iniciar com o Windows")
+        var autoStart = new ToolStripMenuItem
         {
             Checked = AutoStart.IsEnabled,
             CheckOnClick = true
@@ -23,22 +23,30 @@ sealed class TrayController : IDisposable
         {
             if (!_syncingMenu) AutoStart.Set(autoStart.Checked);
         };
-        // O botão nas configurações do mixer também mexe nisso: mantém o menu sincronizado
-        menu.Opening += (_, _) =>
-        {
-            _syncingMenu = true;
-            autoStart.Checked = AutoStart.IsEnabled;
-            _syncingMenu = false;
-        };
-
-        menu.Items.Add(autoStart);
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Sair", null, (_, _) =>
+        var exit = new ToolStripMenuItem();
+        exit.Click += (_, _) =>
         {
             _icon!.Visible = false;
             _form?.Dispose();
             Application.Exit();
-        });
+        };
+
+        // O idioma e o auto-início podem mudar pelo mixer: o menu se atualiza toda vez que abre
+        void SyncMenu()
+        {
+            var lang = AppSettings.Load().Language;
+            autoStart.Text = Strings.Get(lang, "autostart");
+            exit.Text = Strings.Get(lang, "exit");
+            _syncingMenu = true;
+            autoStart.Checked = AutoStart.IsEnabled;
+            _syncingMenu = false;
+        }
+        SyncMenu();
+        menu.Opening += (_, _) => SyncMenu();
+
+        menu.Items.Add(autoStart);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(exit);
 
         _icon = new NotifyIcon
         {

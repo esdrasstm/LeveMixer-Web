@@ -19,6 +19,9 @@ sealed class AppSettings
     // Modo leve: sem vidro (acrílico), sem animações e medidores mais lentos
     public bool LightMode { get; set; }
 
+    // Idioma da interface: "pt" (padrão), "en" ou "es"
+    public string Language { get; set; } = "pt";
+
     static string Folder(string app) => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), app);
 

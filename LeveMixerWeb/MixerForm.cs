@@ -231,10 +231,13 @@ sealed class MixerForm : Form
             core.WebMessageReceived += OnWebMessage;
 
             // https://app.volum/  ->  pasta "wwwroot" ao lado do .exe
+            // No --dev usa a wwwroot do projeto (a que você edita no VS Code) e recarrega ao salvar.
+            var sourceRoot = Program.DevMode ? FindSourceWwwroot() : null;
             core.SetVirtualHostNameToFolderMapping(
                 "app.volum",
-                Path.Combine(AppContext.BaseDirectory, "wwwroot"),
+                sourceRoot ?? Path.Combine(AppContext.BaseDirectory, "wwwroot"),
                 CoreWebView2HostResourceAccessKind.Allow);
+            if (sourceRoot != null) WatchForChanges(sourceRoot);
 
             // Sem cache: editou o CSS/JS, abriu de novo, já vale
             await core.CallDevToolsProtocolMethodAsync("Network.enable", "{}");
@@ -246,11 +249,50 @@ sealed class MixerForm : Form
         catch (Exception ex)
         {
             MessageBox.Show(
-                "Não foi possível iniciar a interface (WebView2).\n\n" +
-                "Verifique se o \"WebView2 Runtime\" está instalado (vem no Windows 11).\n\n" + ex.Message,
+                Strings.Get(_settings.Language, "webviewError") + "\n\n" + ex.Message,
                 "Volum", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             Dispose();
         }
+    }
+
+    // ---------- --dev: recarregar a interface ao salvar no VS Code ----------
+
+    FileSystemWatcher? _watcher;
+    Timer? _reloadDebounce;
+
+    // Sobe a partir de bin\Release\net8.0-windows\ até achar a pasta do projeto (onde está o Volum.csproj)
+    static string? FindSourceWwwroot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        for (int i = 0; i < 6 && dir != null; i++, dir = dir.Parent)
+        {
+            var www = Path.Combine(dir.FullName, "wwwroot");
+            if (File.Exists(Path.Combine(dir.FullName, "Volum.csproj")) && Directory.Exists(www)) return www;
+        }
+        return null;
+    }
+
+    void WatchForChanges(string folder)
+    {
+        // Salvar costuma gerar vários eventos seguidos: espera 200 ms de calma e recarrega uma vez
+        _reloadDebounce = new Timer { Interval = 200 };
+        _reloadDebounce.Tick += (_, _) =>
+        {
+            _reloadDebounce.Stop();
+            DevLog.Write("arquivo salvo: recarregando a interface");
+            _web.CoreWebView2?.Reload();
+        };
+
+        _watcher = new FileSystemWatcher(folder) { IncludeSubdirectories = true };
+        FileSystemEventHandler changed = (_, _) =>
+        {
+            if (IsDisposed) return;
+            BeginInvoke(new Action(() => { _reloadDebounce.Stop(); _reloadDebounce.Start(); }));
+        };
+        _watcher.Changed += changed;
+        _watcher.Created += changed;
+        _watcher.Renamed += (s, e) => changed(s, e);
+        _watcher.EnableRaisingEvents = true;
     }
 
     void BeginOpen()
@@ -260,7 +302,7 @@ sealed class MixerForm : Form
 
         _audio?.Dispose();
         DevLog.Write("abrindo: lendo o áudio");
-        _audio = new AudioService(_iconsSent);
+        _audio = new AudioService(_iconsSent, listenMic: !_settings.LightMode);
 
         // A interface renderiza e responde com "resize"; só então a janela aparece.
         _pendingPresent = true;
@@ -384,7 +426,8 @@ sealed class MixerForm : Form
             theme = _settings.Theme.ToString().ToLowerInvariant(),
             autostart = AutoStart.IsEnabled,
             glass = GlassSupported,
-            lite = _settings.LightMode
+            lite = _settings.LightMode,
+            language = Strings.Normalize(_settings.Language)
         });
     }
 
@@ -461,6 +504,20 @@ sealed class MixerForm : Form
                     }
                     break;
 
+                case "setMicDevice":   // escolheu outro microfone na lista: vira o padrão do Windows
+                    try
+                    {
+                        _audio?.SetDefaultMic(root.GetProperty("id").GetString()!);
+                    }
+                    catch (Exception ex) { Debug.WriteLine(ex); }
+                    PushState();
+                    break;
+
+                case "setLanguage":    // idioma nas configurações (o menu da bandeja lê na próxima vez que abrir)
+                    _settings.Language = Strings.Normalize(root.GetProperty("lang").GetString());
+                    _settings.Save();
+                    break;
+
                 case "setLightMode":   // chave "Modo leve" nas configurações
                     _settings.LightMode = root.GetProperty("enabled").GetBoolean();
                     _settings.Save();
@@ -491,6 +548,8 @@ sealed class MixerForm : Form
             _sync.Dispose();
             _meter.Dispose();
             _idle.Dispose();
+            _watcher?.Dispose();
+            _reloadDebounce?.Dispose();
             _audio?.Dispose();
             _audio = null;
         }
