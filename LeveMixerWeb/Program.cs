@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
+using Velopack;
 
 namespace Volum;
 
@@ -13,6 +14,12 @@ static class Program
     [STAThread]
     static void Main(string[] args)
     {
+        // Velopack (instalador/atualizador): precisa ser a primeira coisa do app. Durante a
+        // instalação, atualização e desinstalação ele roda o Volum rapidinho e sai daqui mesmo.
+        VelopackApp.Build()
+            .OnBeforeUninstallFastCallback(_ => AutoStart.Set(false))   // desinstalou: tira do "iniciar com o Windows"
+            .Run();
+
         DevMode = args.Contains("--dev", StringComparer.OrdinalIgnoreCase);
 
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
@@ -23,15 +30,20 @@ static class Program
         using var mutex = new Mutex(true, "Volum_SingleInstance", out bool created);
         if (!created) return;
 
-        // Primeira execução: já deixa para abrir com o Windows (dá para desligar nas configurações)
-        var settings = AppSettings.Load();
-        if (!settings.FirstRunDone)
+        // Só a versão instalada mexe sozinha no "iniciar com o Windows": a cópia de desenvolvimento
+        // (pasta bin) não pode trocar o caminho para ela mesma.
+        if (Updater.IsInstalled)
         {
-            AutoStart.Set(true);
-            settings.FirstRunDone = true;
-            settings.Save();
+            // Primeira execução: já deixa para abrir com o Windows (dá para desligar nas configurações)
+            var settings = AppSettings.Load();
+            if (!settings.FirstRunDone)
+            {
+                AutoStart.Set(true);
+                settings.FirstRunDone = true;
+                settings.Save();
+            }
+            AutoStart.RefreshPath();
         }
-        AutoStart.RefreshPath();
 
         using var tray = new TrayController();
         MemoryTrim.Run();

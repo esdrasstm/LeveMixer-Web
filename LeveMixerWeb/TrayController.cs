@@ -44,6 +44,9 @@ sealed class TrayController : IDisposable
         SyncMenu();
         menu.Opening += (_, _) => SyncMenu();
 
+        // Versão no topo do menu (ajuda quem está testando a dizer qual versão tem)
+        menu.Items.Add(new ToolStripMenuItem($"Volum {Updater.Version}") { Enabled = false });
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(autoStart);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(exit);
@@ -59,6 +62,11 @@ sealed class TrayController : IDisposable
         {
             if (e.Button == MouseButtons.Left) Toggle();
         };
+
+        // Atualização automática: só reinicia para atualizar quando o mixer não está aberto
+        Updater.Start(
+            canRestart: () => _form == null || _form.IsDisposed || !_form.IsOpen,
+            beforeRestart: () => { _icon.Visible = false; _form?.Dispose(); });
 
         // --dev: abre o mixer assim que o app inicia (agiliza os testes do visual)
         if (Program.DevMode)

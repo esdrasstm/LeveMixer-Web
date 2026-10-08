@@ -48,7 +48,8 @@ C# (WinForms + WebView2) cuida da lógica e da janela. A interface é HTML/CSS/J
 - **Navegação restrita** a `https://app.volum/`; novas janelas bloqueadas.
 - **`--dev`**: `Volum.exe --dev` liga F12 (DevTools), abre o mixer ao iniciar e impede o fechamento ao perder o foco. Também usa a `wwwroot` **do projeto** (não a cópia em `bin`) e recarrega a interface sozinho ao salvar qualquer arquivo dela (`FileSystemWatcher`, espera 200 ms).
 - **Nada pesado a cada segundo**: o `state` roda a cada 1 s na thread da interface. Ler nomes de dispositivos custa ~130 ms, então a lista de microfones fica guardada e só é refeita quando o Windows avisa de mudança (`IMMNotificationClient`, classe `DeviceWatcher`). Ligar/desligar a escuta do microfone (~0,5 s) roda em segundo plano. Use o `DevLog` para medir antes de colocar algo novo no `Snapshot()`.
-- **Auto-início**: chave `HKCU\...\Run` com o nome `Volum`; não registra quando o processo é o `dotnet.exe` (`dotnet run`); corrige o caminho a cada abertura e troca a chave antiga `LeveMixer`, se existir.
+- **Instalador e atualização (Velopack)**: `VelopackApp.Build().Run()` é a primeira linha do `Main`; ao desinstalar, tira o auto-início. Instala em `%LocalAppData%\Volum\current\`. `Updater.cs` procura versão nova no GitHub Releases 1 min depois de abrir e a cada 6 h, baixa em segundo plano e aplica (reinicia sozinho em ~2 s) **só quando o mixer não está aberto**. Nada disso roda na cópia de desenvolvimento (pasta `bin`) nem no `--dev`. A versão aparece no topo do menu da bandeja. Ícone do .exe/instalador: `Volum.ico` (o da bandeja continua sendo desenhado por `IconFactory`).
+- **Auto-início**: chave `HKCU\...\Run` com o nome `Volum`. Registro na primeira execução e correção do caminho **só na versão instalada** (`Updater.IsInstalled`), para a cópia da pasta `bin` não roubar o auto-início da instalada; o botão nas configurações funciona sempre. Troca a chave antiga `LeveMixer`, se existir.
 - **Nome**: o app se chama **Volum** (exe, namespace, projeto `Volum.csproj`, host `app.volum`). As pastas e o repositório no GitHub ainda se chamam LeveMixer.
 
 ## Como compilar e rodar
@@ -57,9 +58,19 @@ Requisitos: Windows 10/11, .NET 8 SDK, WebView2 Runtime (já vem no Windows 11).
 ```
 dotnet run -c Release
 dotnet run -c Release -- --dev
-dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
 ```
-O resultado fica em `bin\Release\net8.0-windows\win-x64\publish\`. Distribuir a **pasta inteira** (`.exe`, `WebView2Loader.dll`, `wwwroot`).
+### Gerar uma versão nova (instalador + atualização automática, Velopack)
+1. Subir `<Version>` no `Volum.csproj` (ex.: 0.1.0 → 0.1.1).
+2. Gerar o pacote (inclui o .NET, funciona sem instalar nada) e o instalador:
+```
+dotnet publish -c Release -r win-x64 --self-contained true -o publish
+vpk pack -u Volum -v 0.1.1 -p publish -e Volum.exe --packTitle Volum --packAuthors Esdras -i Volum.ico -o Releases
+```
+3. Publicar no GitHub Releases (o **token fica fora do repositório**; quem roda é o Esdras, no terminal dele):
+```
+vpk upload github -o Releases --repoUrl https://github.com/esdrasstm/LeveMixer-Web --publish --releaseName "Volum 0.1.1" --tag v0.1.1 --token SEU_TOKEN
+```
+`Releases\Volum-win-Setup.exe` é o instalador para mandar para quem ainda não tem. Quem já tem recebe sozinho. `publish/` e `Releases/` estão no `.gitignore`. A ferramenta `vpk` é instalada com `dotnet tool install -g vpk` (mesma versão do pacote Velopack).
 
 ## Estado atual
 - Uma versão anterior em WPF foi compilada e testada pelo Esdras com sucesso (tema Sistema/Escuro/Claro, animação, auto-início).
@@ -67,7 +78,7 @@ O resultado fica em `bin\Release\net8.0-windows\win-x64\publish\`. Distribuir a 
 - Pontos a observar nos testes: consumo de RAM com a janela aberta e fechada, tempo da primeira abertura, apps que não aparecem na lista.
 
 ## Próximos passos planejados
-1. Instalador com **Inno Setup**, publicando com `--self-contained true` (para funcionar sem instalar o .NET) e distribuição no **GitHub Releases** (não subir `.exe` no repositório).
+1. Instalador + atualização automática com **Velopack**: feito (versão 0.1.0). Falta testar a instalação, publicar a primeira release no GitHub e testar uma atualização de verdade (0.1.0 → 0.1.1).
 2. README do repositório com print, o que o app faz e como instalar (avisar sobre o SmartScreen: "Mais informações" → "Executar assim mesmo").
 3. Funcionalidades, por prioridade: escolher dispositivo de saída/microfone; lembrar o volume de cada app; perfis salvos ("Jogo", "Trabalho", "Noite"); atalhos globais; ocultar/fixar apps; roda do mouse no ícone da bandeja.
 4. Futuramente: instalador com auto-update (**Velopack**) e, se for distribuir de verdade, assinatura de código.
