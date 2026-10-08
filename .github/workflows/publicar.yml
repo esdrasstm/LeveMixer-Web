@@ -1,0 +1,58 @@
+# Botão "Publicar versão" (GitHub → Actions → Publicar versão → Run workflow)
+# Compila o Volum, gera o instalador e a atualização (Velopack) e publica no GitHub Releases.
+# Os Volum instalados encontram a versão nova sozinhos. Não precisa de token pessoal:
+# o GitHub usa a permissão própria do repositório (GITHUB_TOKEN).
+name: Publicar versão
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Número da nova versão (ex.: 0.1.3) — precisa ser maior que a última"
+        required: true
+
+permissions:
+  contents: write   # criar a release e enviar os arquivos
+
+jobs:
+  publicar:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: LeveMixerWeb
+    env:
+      VERSION: ${{ inputs.version }}
+      REPO_URL: https://github.com/${{ github.repository }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Conferir o número da versão
+        run: |
+          if ($env:VERSION -notmatch '^\d+\.\d+\.\d+$') {
+            Write-Error "Versão '$env:VERSION' inválida. Use o formato 0.1.3"
+            exit 1
+          }
+
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Instalar o .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Instalar o Velopack (vpk)
+        run: dotnet tool install -g vpk --version 1.2.161
+
+      - name: Baixar a última versão publicada (para gerar a atualização pequena)
+        run: vpk download github --repoUrl $env:REPO_URL --token $env:GH_TOKEN -o Releases
+
+      - name: Compilar (já com o .NET dentro, funciona sem instalar nada)
+        run: dotnet publish -c Release -r win-x64 --self-contained true -o publish -p:Version=$env:VERSION
+
+      - name: Gerar instalador e pacotes de atualização
+        run: vpk pack -u Volum -v $env:VERSION -p publish -e Volum.exe --packTitle Volum --packAuthors Esdras -i Volum.ico -o Releases
+
+      - name: Publicar no GitHub Releases
+        run: vpk upload github -o Releases --repoUrl $env:REPO_URL --token $env:GH_TOKEN --publish --releaseName "Volum $env:VERSION" --tag "v$env:VERSION" --targetCommitish $env:GITHUB_SHA

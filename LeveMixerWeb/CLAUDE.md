@@ -60,7 +60,12 @@ Requisitos: Windows 10/11, .NET 8 SDK, WebView2 Runtime (já vem no Windows 11).
 dotnet run -c Release
 dotnet run -c Release -- --dev
 ```
-### Gerar uma versão nova (instalador + atualização automática, Velopack)
+### Publicar uma versão nova (jeito principal: botão no GitHub)
+1. Fazer commit + push das mudanças no código.
+2. GitHub → aba **Actions** → **Publicar versão** → **Run workflow** → digitar o número (ex.: `0.1.3`, sempre maior que a última).
+3. Em ~5 min o GitHub compila, gera instalador + atualização e publica no Releases (`.github/workflows/publicar.yml`, na raiz do repositório). Usa a permissão própria do repositório (`GITHUB_TOKEN`), **sem token pessoal**. O número digitado substitui o `<Version>` do `Volum.csproj` (que vale só para as builds locais).
+
+### Publicar pelo terminal (alternativa manual)
 1. Subir `<Version>` no `Volum.csproj` (ex.: 0.1.0 → 0.1.1).
 2. Gerar o pacote (inclui o .NET, funciona sem instalar nada) e o instalador:
 ```
@@ -79,7 +84,7 @@ vpk upload github -o Releases --repoUrl https://github.com/esdrasstm/Volum --pub
 - Pontos a observar nos testes: consumo de RAM com a janela aberta e fechada, tempo da primeira abertura, apps que não aparecem na lista.
 
 ## Próximos passos planejados
-1. Instalador + atualização automática com **Velopack**: feito (versão 0.1.0). Falta testar a instalação, publicar a primeira release no GitHub e testar uma atualização de verdade (0.1.0 → 0.1.1).
+1. Instalador + atualização automática com **Velopack**: feito. 0.1.0 e 0.1.1 publicadas; botão "Publicar versão" no GitHub Actions criado. Falta ver uma atualização de verdade acontecer (0.1.1 instalada → 0.1.2 publicada pelo botão).
 2. README do repositório com print, o que o app faz e como instalar (avisar sobre o SmartScreen: "Mais informações" → "Executar assim mesmo").
 3. Funcionalidades, por prioridade: escolher dispositivo de saída/microfone; lembrar o volume de cada app; perfis salvos ("Jogo", "Trabalho", "Noite"); atalhos globais; ocultar/fixar apps; roda do mouse no ícone da bandeja.
 4. Futuramente: instalador com auto-update (**Velopack**) e, se for distribuir de verdade, assinatura de código.
