@@ -15,7 +15,7 @@ namespace Volum;
 /// </summary>
 static class Updater
 {
-    const string RepoUrl = "https://github.com/esdrasstm/LeveMixer-Web";
+    const string RepoUrl = "https://github.com/esdrasstm/Volum";
 
     static readonly UpdateManager Manager = new(new GithubSource(RepoUrl, null, false));
     static UpdateInfo? _ready;     // já baixada, esperando o mixer fechar
