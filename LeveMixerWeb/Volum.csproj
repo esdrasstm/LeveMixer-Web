@@ -10,7 +10,7 @@
     <AssemblyName>Volum</AssemblyName>
     <Product>Volum</Product>
     <!-- Versão do app: suba a cada release (precisa bater com o -v do "vpk pack") -->
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <ApplicationIcon>Volum.ico</ApplicationIcon>
     <InvariantGlobalization>true</InvariantGlobalization>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>

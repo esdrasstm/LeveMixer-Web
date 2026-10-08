@@ -206,9 +206,11 @@ sealed class MixerForm : Form
         {
             _ = Handle; // cria a janela (ainda invisível) para o WebView2 poder inicializar
 
+            // Cache do WebView2. A cópia de teste (preview / --dev / pasta bin) usa outra pasta:
+            // se usasse %LocalAppData%\Volum, o instalador acharia que o Volum já está instalado.
             var userData = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Volum", "WebView2");
+                Updater.IsInstalled ? "Volum" : "VolumDev", "WebView2");
             DevLog.Write("WebView2: criando ambiente");
             var env = await CoreWebView2Environment.CreateAsync(null, userData);
             DevLog.Write("WebView2: ambiente pronto");
