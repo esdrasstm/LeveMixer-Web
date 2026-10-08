@@ -86,6 +86,7 @@ vpk upload github -o Releases --repoUrl https://github.com/esdrasstm/LeveMixer-W
 ## Combinados de trabalho
 - Mudanças pequenas e pontuais; não reescrever arquivos inteiros sem necessidade.
 - Pedir confirmação antes de `git commit`, `git push` e de publicar releases.
+- Mensagens de commit **sem** linha de coautoria (`Co-Authored-By: ...`) e sem menção ao Claude/Anthropic: só o título e a lista de mudanças.
 - Nunca colocar senhas, tokens ou chaves no repositório.
 - Manter o app leve: evitar timers e polling quando a janela está fechada, evitar dependências pesadas.
 - Visual: mexer em `wwwroot/` (HTML/CSS/JS) sempre que possível; manter a lógica de áudio no C#.

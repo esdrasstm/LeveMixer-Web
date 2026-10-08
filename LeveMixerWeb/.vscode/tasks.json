@@ -1,0 +1,14 @@
+{
+  // Ctrl + Shift + B no VS Code: abre o preview do Volum (mesmo que dar dois cliques no preview.cmd)
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Volum: preview",
+      "type": "shell",
+      "command": "${workspaceFolder}\\preview.cmd",
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    }
+  ]
+}
