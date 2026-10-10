@@ -41,6 +41,17 @@ jobs:
           cp -r LeveMixerWeb/wwwroot/. _site/app/
           sed -i 's#\.\./LeveMixerWeb/wwwroot/#app/#g' _site/demo.html
           grep -q 'app/app.js' _site/demo.html
+          # A estrutura da demo (<main>…</main>) é copiada do app a cada publicação:
+          # se o app ganhar um botão novo, a demo do site não fica desatualizada.
+          python3 - <<'PY'
+          import re, pathlib
+          app = pathlib.Path("LeveMixerWeb/wwwroot/index.html").read_text(encoding="utf-8")
+          demo_path = pathlib.Path("_site/demo.html")
+          demo = demo_path.read_text(encoding="utf-8")
+          main = re.search(r'<main id="card".*?</main>', app, re.S).group(0)
+          demo_path.write_text(re.sub(r'<main id="card".*?</main>', lambda m: main, demo, count=1, flags=re.S), encoding="utf-8")
+          print("estrutura da demo sincronizada com o app")
+          PY
 
       - name: Preparar o Pages
         uses: actions/configure-pages@v5

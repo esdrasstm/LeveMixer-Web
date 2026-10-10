@@ -448,7 +448,7 @@
   }));
 
   $('minimizeBtn').addEventListener('click', () => post({ type: 'hide' }));
-  $('siteBtn').addEventListener('click', () => post({ type: 'openSite' }));   // o C# abre no navegador
+  $('siteBtn')?.addEventListener('click', () => post({ type: 'openSite' }));   // o C# abre no navegador (? = não trava se faltar)
 
   autostartEl.addEventListener('change', () => {
     post({ type: 'setAutostart', enabled: autostartEl.checked });

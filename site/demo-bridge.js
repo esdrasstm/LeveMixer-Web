@@ -173,6 +173,7 @@
       case 'setMicDevice': model.mic.id = m.id; send(state()); break;
       case 'hide': close(); break;
       case 'tick': tick(); break;
+      case 'openSite': toPage({ type: 'top' }); break;   // já estamos no site: volta para o topo
     }
   }
 

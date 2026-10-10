@@ -869,6 +869,7 @@
       if (!m.volumDemo || e.source !== frame.contentWindow) return;
       if (m.type === 'resize') frame.style.height = Math.ceil(m.height) + 'px';
       if (m.type === 'lite') demo.classList.toggle('lite', m.on);
+      if (m.type === 'top') window.scrollTo({ top: 0, behavior: 'smooth' });   // "Site do Volum" na demo
       if (m.type === 'hide') {
         // espera a animação de saída do app terminar e "esconde a janela"
         setTimeout(() => {
