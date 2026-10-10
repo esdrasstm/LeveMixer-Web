@@ -78,16 +78,19 @@ vpk upload github -o Releases --repoUrl https://github.com/esdrasstm/Volum --pub
 ```
 `Releases\Volum-win-Setup.exe` é o instalador para mandar para quem ainda não tem. Quem já tem recebe sozinho. `publish/` e `Releases/` estão no `.gitignore`. A ferramenta `vpk` é instalada com `dotnet tool install -g vpk` (mesma versão do pacote Velopack).
 
-## Estado atual
-- Uma versão anterior em WPF foi compilada e testada pelo Esdras com sucesso (tema Sistema/Escuro/Claro, animação, auto-início).
-- A versão atual (WinForms + WebView2) foi escrita **sem ser compilada no ambiente do chat**: o primeiro `dotnet build` pode mostrar erros pequenos. Corrigir e validar: abrir/fechar, volume por app, mute, medidor, temas, auto-início depois de reiniciar o PC.
-- Pontos a observar nos testes: consumo de RAM com a janela aberta e fechada, tempo da primeira abertura, apps que não aparecem na lista.
+## Estado atual (10/10/2026)
+- App compila e funciona. Última versão publicada: **0.1.3** (laranja, tema "Sistema" do Windows, link do site, abertura instantânea, atualização silenciosa). Atualização automática testada de verdade (0.1.1 → 0.1.2 → 0.1.3).
+- **Landing page** em `../site/` (fora desta pasta, na raiz do repositório), publicada no GitHub Pages: https://esdrasstm.github.io/Volum/ — atualiza sozinha a cada push (workflow `.github/workflows/site.yml`). A demo interativa (`site/demo.html` + `demo-bridge.js`) roda a interface real do app (CSS/JS do `wwwroot`); na publicação a estrutura `<main>` é copiada do `wwwroot/index.html`. Design veio do Figma do Esdras (laranja #ED5A23, fundo marrom escuro, "clique" na fonte **Bernadette** — licença não verificada, uso **temporário**: o Esdras vai trocar por outra fonte).
+- Preview local da LP: abrir `site/index.html` no Chrome/Edge (o painel do app do Claude não roda scripts de arquivos locais; para ele, servir por localhost).
+- Métricas hoje: só downloads pela API do GitHub (`/repos/esdrasstm/Volum/releases`, campo `download_count`; o `Volum-win-Setup.exe` conta os cliques em "Baixar" da LP).
 
 ## Próximos passos planejados
-1. Instalador + atualização automática com **Velopack**: feito. 0.1.0 e 0.1.1 publicadas; botão "Publicar versão" no GitHub Actions criado. Falta ver uma atualização de verdade acontecer (0.1.1 instalada → 0.1.2 publicada pelo botão).
-2. README do repositório com print, o que o app faz e como instalar (avisar sobre o SmartScreen: "Mais informações" → "Executar assim mesmo").
-3. Funcionalidades, por prioridade: escolher dispositivo de saída/microfone; lembrar o volume de cada app; perfis salvos ("Jogo", "Trabalho", "Noite"); atalhos globais; ocultar/fixar apps; roda do mouse no ícone da bandeja.
-4. Futuramente: instalador com auto-update (**Velopack**) e, se for distribuir de verdade, assinatura de código.
+1. **Métricas**: GoatCounter na LP (visitas, origem, cliques em "Baixar"; o Esdras cria a conta) e um painel privado juntando isso com os downloads do GitHub. Usuários ativos do app: só depois, anônimo e opcional.
+2. **Vídeo promocional**: interface real do app animada por roteiro, renderizada quadro a quadro em MP4 (precisa do FFmpeg via winget, com autorização). Esdras define formato, duração e cenas.
+3. Trocar a fonte Bernadette da LP por uma com licença livre.
+4. README do repositório com print, o que o app faz e como instalar (avisar sobre o SmartScreen).
+5. Funcionalidades, por prioridade: escolher dispositivo de saída; lembrar o volume de cada app; perfis salvos ("Jogo", "Trabalho", "Noite"); atalhos globais; ocultar/fixar apps; roda do mouse no ícone da bandeja.
+6. Se for distribuir de verdade: assinatura de código (tira o aviso do SmartScreen).
 
 ## Combinados de trabalho
 - Mudanças pequenas e pontuais; não reescrever arquivos inteiros sem necessidade.
