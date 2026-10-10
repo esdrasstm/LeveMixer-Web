@@ -44,7 +44,10 @@ static class Updater
             if (_ready != null && canRestart())
             {
                 beforeRestart();
-                Manager.ApplyUpdatesAndRestart(_ready);   // fecha, atualiza e abre de novo
+                // Em silêncio (sem a janelinha de progresso do Velopack): o atualizador espera o
+                // Volum fechar, troca os arquivos e abre a versão nova
+                Manager.WaitExitThenApplyUpdates(_ready, silent: true, restart: true);
+                Application.Exit();
                 return;
             }
             // Baixada mas o mixer está aberto: tenta de novo em 1 min. Sem novidade: volta em 6 h.

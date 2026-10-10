@@ -3,7 +3,7 @@
    Fala com o C# por mensagens JSON:
      C# -> JS : settings | state | peaks | open | close
      JS -> C# : ready | resize | setVolume | setMute | setTheme | setAutostart
-                | setLightMode | setLanguage | hide | tick
+                | setLightMode | setLanguage | setMicDevice | openSite | hide | tick
    ========================================================= */
 (() => {
   'use strict';
@@ -20,29 +20,29 @@
     pt: {
       settings: 'Configurações', minimize: 'Minimizar', theme: 'Tema', language: 'Idioma',
       system: 'Sistema', dark: 'Escuro', light: 'Claro',
-      autostart: 'Iniciar com o Windows', lite: 'Modo leve', liteHint: 'Desliga vidro, brilhos e animações',
+      autostart: 'Iniciar com o Windows', lite: 'Modo leve', liteHint: 'Sem vidro e animações; usa menos memória',
       apps: 'Aplicativos', empty: 'Nenhum app usando áudio agora',
       master: 'Volume geral', mic: 'Microfone', systemSounds: 'Sons do sistema',
       mute: 'Silenciar', unmute: 'Ativar som', micMute: 'Desligar microfone', micUnmute: 'Ligar microfone',
-      micPick: 'Escolher microfone',
+      micPick: 'Escolher microfone', site: 'Site do Volum',
     },
     en: {
       settings: 'Settings', minimize: 'Minimize', theme: 'Theme', language: 'Language',
       system: 'System', dark: 'Dark', light: 'Light',
-      autostart: 'Start with Windows', lite: 'Lite mode', liteHint: 'Turns off glass, glow and animations',
+      autostart: 'Start with Windows', lite: 'Lite mode', liteHint: 'No glass or animations; uses less memory',
       apps: 'Apps', empty: 'No apps playing audio right now',
       master: 'Master volume', mic: 'Microphone', systemSounds: 'System sounds',
       mute: 'Mute', unmute: 'Unmute', micMute: 'Mute microphone', micUnmute: 'Unmute microphone',
-      micPick: 'Choose microphone',
+      micPick: 'Choose microphone', site: 'Volum website',
     },
     es: {
       settings: 'Configuración', minimize: 'Minimizar', theme: 'Tema', language: 'Idioma',
       system: 'Sistema', dark: 'Oscuro', light: 'Claro',
-      autostart: 'Iniciar con Windows', lite: 'Modo ligero', liteHint: 'Desactiva vidrio, brillos y animaciones',
+      autostart: 'Iniciar con Windows', lite: 'Modo ligero', liteHint: 'Sin vidrio ni animaciones; usa menos memoria',
       apps: 'Aplicaciones', empty: 'Ninguna app está reproduciendo audio',
       master: 'Volumen general', mic: 'Micrófono', systemSounds: 'Sonidos del sistema',
       mute: 'Silenciar', unmute: 'Activar sonido', micMute: 'Silenciar micrófono', micUnmute: 'Activar micrófono',
-      micPick: 'Elegir micrófono',
+      micPick: 'Elegir micrófono', site: 'Sitio de Volum',
     },
   };
   let lang = 'pt';
@@ -289,7 +289,7 @@
 
   // Mostra o microfone atual e (re)monta a lista só quando os microfones conectados mudam
   function updateMicPicker(m) {
-    micCurrentEl.textContent = m.device;
+    if (m.device) micCurrentEl.textContent = m.device;   // vazio = ainda lendo (chega no próximo estado)
     const sig = m.id + '|' + m.devices.map((d) => d.id + '=' + d.name).join('|');
     if (sig === micListSig) return;
     micListSig = sig;
@@ -340,6 +340,7 @@
 
   function applySettings(s) {
     setLanguage(s.language || 'pt');
+    if (typeof s.systemDark === 'boolean') systemDark = s.systemDark;   // tema do Windows (o C# lê)
     setTheme(s.theme);
     glassSupported = !!s.glass;
     setLite(!!s.lite);
@@ -362,6 +363,7 @@
     const m = e.data;
     switch (m.type) {
       case 'settings': applySettings(m); break;
+      case 'systemTheme': systemDark = m.dark; applyScheme(); break;   // trocou o tema do Windows
       case 'state':    applyState(m);    break;
       case 'peaks':    applyPeaks(m);    break;
       case 'open':     replay('enter');  break;
@@ -400,10 +402,13 @@
     });
   }
 
-  // Tema efetivo (claro/escuro): resolve o "Sistema" e acompanha a troca do Windows ao vivo
+  // Tema efetivo (claro/escuro). "Sistema" segue o tema do Windows que o C# informa (systemDark);
+  // sem C# (a demo do site), usa o prefers-color-scheme do navegador.
+  let systemDark = null;
   function applyScheme() {
     const mode = root.dataset.theme;
-    const light = mode === 'light' || (mode === 'system' && prefersLight.matches);
+    const sysLight = systemDark === null ? prefersLight.matches : !systemDark;
+    const light = mode === 'light' || (mode === 'system' && sysLight);
     root.dataset.scheme = light ? 'light' : 'dark';
   }
   prefersLight.addEventListener('change', applyScheme);
@@ -443,6 +448,7 @@
   }));
 
   $('minimizeBtn').addEventListener('click', () => post({ type: 'hide' }));
+  $('siteBtn').addEventListener('click', () => post({ type: 'openSite' }));   // o C# abre no navegador
 
   autostartEl.addEventListener('change', () => {
     post({ type: 'setAutostart', enabled: autostartEl.checked });

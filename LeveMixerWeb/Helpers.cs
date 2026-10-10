@@ -182,7 +182,11 @@ static class IconFactory
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.Clear(System.Drawing.Color.Transparent);
 
-            using var bg = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(255, 124, 92, 255));
+            // Círculo laranja em degradê (mesmas cores do logo e do site)
+            using var bg = new System.Drawing.Drawing2D.LinearGradientBrush(
+                new System.Drawing.Rectangle(0, 0, 32, 32),
+                System.Drawing.Color.FromArgb(255, 245, 137, 90),
+                System.Drawing.Color.FromArgb(255, 224, 74, 18), 45f);
             g.FillEllipse(bg, 0, 0, 31, 31);
 
             using var line = new System.Drawing.Pen(System.Drawing.Color.White, 2.5f)

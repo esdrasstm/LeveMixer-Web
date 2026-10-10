@@ -17,27 +17,28 @@
 }
 
 /* ---------- Tokens: escuro sólido (padrão) ---------- */
+/* Laranja do site (#ED5A23) e neutros quentes (marrom bem escuro, não azulado) */
 :root {
-  --accent: #7c5cff;
-  --accent-2: #a58cff;
-  --accent-ring: rgba(124, 92, 255, .28);
-  --accent-glow: rgba(124, 92, 255, .55);
+  --accent: #ed5a23;
+  --accent-2: #f5895a;
+  --accent-ring: rgba(237, 90, 35, .28);
+  --accent-glow: rgba(237, 90, 35, .5);
   --danger: #ff7a8a;
   --meter-a: #4ade80;
   --meter-b: #2dd4bf;
 
-  --bg: #1c1c22;
-  --surface: #25252d;
-  --surface-hover: #2d2d37;
-  --border: #31313c;
-  --highlight: rgba(255, 255, 255, .03);
-  --text: #f1f1f5;
-  --subtext: #9797a6;
-  --icon: #c6c6d3;
-  --track: #3a3a46;
-  --meter-bg: #2a2a33;
-  --seg-bg: #1e1e25;
-  --seg-active: #393946;
+  --bg: #1b1613;
+  --surface: #26201c;
+  --surface-hover: #2f2824;
+  --border: #3a312c;
+  --highlight: rgba(255, 240, 230, .03);
+  --text: #f7f2ef;
+  --subtext: #a89c95;
+  --icon: #d2c8c2;
+  --track: #3e3530;
+  --meter-bg: #2c2521;
+  --seg-bg: #1d1714;
+  --seg-active: #3d342f;
   --thumb: #ffffff;
   --thumb-shadow: 0 1px 4px rgba(0, 0, 0, .45);
   --sheen: transparent;
@@ -52,55 +53,55 @@
 
 /* ---------- Tokens: claro sólido ---------- */
 :root[data-scheme="light"] {
-  --accent: #6d4cff;
-  --accent-2: #977dff;
-  --accent-ring: rgba(109, 76, 255, .22);
-  --accent-glow: rgba(109, 76, 255, .4);
+  --accent: #e04a12;
+  --accent-2: #f07040;
+  --accent-ring: rgba(224, 74, 18, .22);
+  --accent-glow: rgba(224, 74, 18, .35);
   --danger: #e5484d;
   --meter-a: #22c55e;
   --meter-b: #14b8a6;
 
-  --bg: #f6f6f9;
+  --bg: #f8f5f3;
   --surface: #ffffff;
-  --surface-hover: #eeeef4;
-  --border: #e3e3ea;
+  --surface-hover: #f1ebe7;
+  --border: #e8e0db;
   --highlight: rgba(255, 255, 255, .9);
-  --text: #1b1b23;
-  --subtext: #6b6b7a;
-  --icon: #4a4a58;
-  --track: #d6d6e0;
-  --meter-bg: #e7e7ee;
-  --seg-bg: #ececf2;
+  --text: #1f1915;
+  --subtext: #73665f;
+  --icon: #51453f;
+  --track: #ddd4cf;
+  --meter-bg: #ece6e2;
+  --seg-bg: #f0eae6;
   --seg-active: #ffffff;
-  --thumb-shadow: 0 1px 3px rgba(20, 20, 40, .25), 0 0 0 1px rgba(20, 20, 40, .06);
+  --thumb-shadow: 0 1px 3px rgba(40, 20, 10, .25), 0 0 0 1px rgba(40, 20, 10, .06);
 }
 
 /* ---------- Tokens: vidro escuro ---------- */
 :root.glass {
-  --bg: rgba(16, 16, 24, .34);
-  --surface: rgba(255, 255, 255, .055);
-  --surface-hover: rgba(255, 255, 255, .085);
-  --border: rgba(255, 255, 255, .085);
-  --highlight: rgba(255, 255, 255, .10);       /* fio de luz no topo de cada painel */
-  --track: rgba(255, 255, 255, .16);
-  --meter-bg: rgba(255, 255, 255, .07);
-  --seg-bg: rgba(0, 0, 0, .20);
-  --seg-active: rgba(255, 255, 255, .15);
-  --sheen: rgba(255, 255, 255, .075);          /* brilho diagonal no topo do vidro */
-  --edge: rgba(255, 255, 255, .11);            /* contorno de luz da janela */
+  --bg: rgba(30, 18, 12, .40);                 /* tom quente por cima do acrílico */
+  --surface: rgba(255, 236, 225, .055);
+  --surface-hover: rgba(255, 236, 225, .085);
+  --border: rgba(255, 230, 215, .09);
+  --highlight: rgba(255, 240, 230, .10);       /* fio de luz no topo de cada painel */
+  --track: rgba(255, 236, 225, .16);
+  --meter-bg: rgba(255, 236, 225, .07);
+  --seg-bg: rgba(0, 0, 0, .22);
+  --seg-active: rgba(255, 236, 225, .15);
+  --sheen: rgba(255, 230, 215, .07);           /* brilho diagonal no topo do vidro */
+  --edge: rgba(255, 230, 215, .11);            /* contorno de luz da janela */
   --noise-opacity: .05;                        /* granulado sutil (vidro fosco) */
 }
 
 /* ---------- Tokens: vidro claro ---------- */
 :root.glass[data-scheme="light"] {
-  --bg: rgba(255, 255, 255, .36);
+  --bg: rgba(255, 250, 246, .40);
   --surface: rgba(255, 255, 255, .5);
   --surface-hover: rgba(255, 255, 255, .7);
   --border: rgba(255, 255, 255, .7);
   --highlight: rgba(255, 255, 255, .85);
-  --track: rgba(20, 20, 40, .12);
-  --meter-bg: rgba(20, 20, 40, .06);
-  --seg-bg: rgba(20, 20, 40, .06);
+  --track: rgba(40, 20, 10, .12);
+  --meter-bg: rgba(40, 20, 10, .06);
+  --seg-bg: rgba(40, 20, 10, .06);
   --seg-active: rgba(255, 255, 255, .9);
   --sheen: rgba(255, 255, 255, .5);
   --edge: rgba(255, 255, 255, .65);
@@ -406,6 +407,27 @@ button:focus-visible, input:focus-visible + span { outline: 2px solid var(--acce
 .mic-option[aria-selected="true"] svg { visibility: visible; }
 
 .label-gap { margin-top: 14px; }
+
+/* Link "Site do Volum" no fim das configurações */
+.site-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin: 2px 0 6px;
+  padding: 9px 0 4px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--subtext);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color .18s ease;
+}
+.site-link:hover { color: var(--accent-2); }
+.site-link svg { width: 12px; height: 12px; transition: transform .25s var(--bounce); }
+.site-link:hover svg { transform: translate(2px, -2px); }
 
 /* ---------- Lista de apps ---------- */
 .section-label {

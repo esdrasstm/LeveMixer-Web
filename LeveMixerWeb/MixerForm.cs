@@ -23,6 +23,7 @@ sealed class MixerForm : Form
     const int WidthDip = 360;
     const int MarginDip = 12;      // distância da borda da área de trabalho
     const int CloseMs = 130;       // acompanha --exit-ms do CSS (120ms)
+    const string SiteUrl = "https://esdrasstm.github.io/Volum/";
 
     static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -62,6 +63,7 @@ sealed class MixerForm : Form
         _web.Dock = DockStyle.Fill;
         ApplyBackdrop();
         Controls.Add(_web);
+        Microsoft.Win32.SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
         if (_settings.LightMode) _meter.Interval = MeterLiteMs;
 
         _sync.Tick += (_, _) => PushState();
@@ -69,7 +71,9 @@ sealed class MixerForm : Form
         _idle.Tick += (_, _) =>
         {
             _idle.Stop();
-            if (!_shown) Dispose();
+            if (_shown) return;
+            if (KeepWarm) _ = SleepAsync();   // fica "dormindo": abre na hora da próxima vez
+            else Dispose();                  // modo leve: descarta tudo e libera a memória
         };
 
         Deactivate += (_, _) =>
@@ -117,7 +121,7 @@ sealed class MixerForm : Form
     void ApplyBackdrop()
     {
         bool dark = IsDarkTheme();
-        var solid = dark ? Color.FromArgb(28, 28, 34) : Color.FromArgb(246, 246, 249);
+        var solid = dark ? Color.FromArgb(27, 22, 19) : Color.FromArgb(248, 245, 243);
 
         // Preto = transparente para o DWM: aparece o acrílico. O WebView também fica transparente.
         BackColor = UseGlass ? Color.Black : solid;
@@ -142,12 +146,30 @@ sealed class MixerForm : Form
         catch { }
     }
 
-    bool IsDarkTheme()
+    bool IsDarkTheme() =>
+        _settings.Theme == ThemeMode.System ? WindowsIsDark() : _settings.Theme == ThemeMode.Dark;
+
+    /// <summary>
+    /// Tema "Sistema": o modo do Windows (o da barra de tarefas e do Iniciar, onde o mixer aparece).
+    /// É a única fonte: o C# manda o resultado para a interface (settings.systemDark).
+    /// </summary>
+    static bool WindowsIsDark()
     {
-        if (_settings.Theme != ThemeMode.System) return _settings.Theme == ThemeMode.Dark;
         using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
             @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
-        return k?.GetValue("AppsUseLightTheme") is int v && v == 0;
+        var v = k?.GetValue("SystemUsesLightTheme") ?? k?.GetValue("AppsUseLightTheme");
+        return v is int i && i == 0;
+    }
+
+    // Trocou o tema do Windows com o mixer aberto: atualiza vidro e interface na hora
+    void OnUserPreferenceChanged(object? sender, Microsoft.Win32.UserPreferenceChangedEventArgs e)
+    {
+        if (e.Category != Microsoft.Win32.UserPreferenceCategory.General || IsDisposed) return;
+        BeginInvoke(new Action(() =>
+        {
+            ApplyBackdrop();
+            Post(new { type = "systemTheme", dark = WindowsIsDark() });
+        }));
     }
 
     [DllImport("dwmapi.dll")]
@@ -161,10 +183,61 @@ sealed class MixerForm : Form
 
     // ---------- abrir / fechar ----------
 
+    // ---------- WebView "dormindo" ----------
+    // Iniciar o WebView2 do zero leva ~1 s (era o que deixava a abertura lenta). Fora do modo leve,
+    // ele não é descartado: fica suspenso (0% de CPU) e com a memória no mínimo, e acorda no clique.
+    bool KeepWarm => !_settings.LightMode && !Program.DevMode;
+    bool _asleep;
+
+    async Task SleepAsync()
+    {
+        var core = _web.CoreWebView2;
+        if (core == null || _shown || _asleep) return;
+        try
+        {
+            _web.Visible = false;   // o WebView2 só aceita suspender quando está marcado como invisível
+            core.MemoryUsageTargetLevel = CoreWebView2MemoryUsageTargetLevel.Low;
+            _asleep = await core.TrySuspendAsync();
+            DevLog.Write($"WebView2 dormindo: {_asleep}");
+        }
+        catch (Exception ex) { Debug.WriteLine(ex); }
+        BeginInvoke(new Action(MemoryTrim.Run));
+    }
+
+    void Wake()
+    {
+        var core = _web.CoreWebView2;
+        if (core == null) return;
+        try
+        {
+            if (_asleep) core.Resume();
+            core.MemoryUsageTargetLevel = CoreWebView2MemoryUsageTargetLevel.Normal;
+            _web.Visible = true;
+        }
+        catch (Exception ex) { Debug.WriteLine(ex); }
+        _asleep = false;
+    }
+
+    /// <summary>Inicia o WebView2 escondido logo depois que o app abre, para o 1º clique já ser rápido.</summary>
+    public void Prewarm()
+    {
+        if (IsDisposed || _initStarted || !KeepWarm) return;
+        _initStarted = true;
+        DevLog.Write("pré-aquecendo o WebView2");
+        _ = InitWebViewAsync();
+    }
+
+    async Task SleepAfterPrewarmAsync()
+    {
+        await Task.Delay(1500);   // deixa a página terminar de pintar antes de suspender
+        if (!_shown && !_wantOpen && !IsDisposed) await SleepAsync();
+    }
+
     public async void Open()
     {
         if (IsDisposed) return;
         _idle.Stop();
+        Wake();
         _wantOpen = true;
 
         // A janela (vidro vazio) aparece na hora do clique; o conteúdo surge quando estiver pronto.
@@ -241,9 +314,13 @@ sealed class MixerForm : Form
                 CoreWebView2HostResourceAccessKind.Allow);
             if (sourceRoot != null) WatchForChanges(sourceRoot);
 
-            // Sem cache: editou o CSS/JS, abriu de novo, já vale
-            await core.CallDevToolsProtocolMethodAsync("Network.enable", "{}");
-            await core.CallDevToolsProtocolMethodAsync("Network.setCacheDisabled", "{\"cacheDisabled\":true}");
+            // Sem cache só no --dev (editou o CSS/JS, recarregou, já vale). Na versão instalada
+            // a interface não muda entre aberturas, e essas duas chamadas atrasavam a abertura.
+            if (Program.DevMode)
+            {
+                await core.CallDevToolsProtocolMethodAsync("Network.enable", "{}");
+                await core.CallDevToolsProtocolMethodAsync("Network.setCacheDisabled", "{\"cacheDisabled\":true}");
+            }
 
             DevLog.Write("carregando a interface");
             core.Navigate("https://app.volum/index.html");
@@ -429,7 +506,8 @@ sealed class MixerForm : Form
             autostart = AutoStart.IsEnabled,
             glass = GlassSupported,
             lite = _settings.LightMode,
-            language = Strings.Normalize(_settings.Language)
+            language = Strings.Normalize(_settings.Language),
+            systemDark = WindowsIsDark()
         });
     }
 
@@ -479,6 +557,7 @@ sealed class MixerForm : Form
                         PushState();
                         Present();
                     }
+                    else _ = SleepAfterPrewarmAsync();   // pré-aquecido e ninguém abriu: vai dormir
                     break;
 
                 case "resize":
@@ -531,6 +610,12 @@ sealed class MixerForm : Form
                     AutoStart.Set(root.GetProperty("enabled").GetBoolean());
                     break;
 
+                case "openSite":   // link "Site do Volum": abre no navegador padrão e fecha o mixer
+                    try { Process.Start(new ProcessStartInfo(SiteUrl) { UseShellExecute = true }); }
+                    catch (Exception ex) { Debug.WriteLine(ex); }
+                    _ = CloseAnimatedAsync();
+                    break;
+
                 case "hide":   // botão minimizar: fecha com animação (também no modo --dev)
                     _ = CloseAnimatedAsync();
                     break;
@@ -547,6 +632,7 @@ sealed class MixerForm : Form
     {
         if (disposing)
         {
+            Microsoft.Win32.SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
             _sync.Dispose();
             _meter.Dispose();
             _idle.Dispose();

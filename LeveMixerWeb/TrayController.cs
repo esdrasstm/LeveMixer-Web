@@ -75,6 +75,30 @@ sealed class TrayController : IDisposable
             t.Tick += (_, _) => { t.Dispose(); Toggle(); };
             t.Start();
         }
+        else
+        {
+            // Pré-aquece o WebView2 alguns segundos depois de abrir (sem atrasar o início do Windows):
+            // assim até o primeiro clique abre na hora. No modo leve não faz nada.
+            var warm = new Timer { Interval = 4000 };
+            warm.Tick += (_, _) =>
+            {
+                warm.Dispose();
+                if (_form == null || _form.IsDisposed) EnsureForm().Prewarm();
+            };
+            warm.Start();
+        }
+    }
+
+    MixerForm EnsureForm()
+    {
+        if (_form != null && !_form.IsDisposed) return _form;
+        _form = new MixerForm();
+        _form.Disposed += (_, _) =>
+        {
+            _form = null;
+            MemoryTrim.Run();
+        };
+        return _form;
     }
 
     void Toggle()
@@ -92,16 +116,7 @@ sealed class TrayController : IDisposable
             // sem esse intervalo ele fecharia e reabriria na hora.
             if ((DateTime.UtcNow - _form.LastHiddenUtc).TotalMilliseconds < 300) return;
         }
-        else
-        {
-            _form = new MixerForm();
-            _form.Disposed += (_, _) =>
-            {
-                _form = null;
-                MemoryTrim.Run();
-            };
-        }
-        _form.Open();
+        EnsureForm().Open();
     }
 
     public void Dispose()

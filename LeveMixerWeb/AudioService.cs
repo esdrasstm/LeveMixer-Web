@@ -89,7 +89,14 @@ sealed class AudioService : IDisposable
             try
             {
                 var mv = _mic.AudioEndpointVolume;
-                mic = new MicDto(mv.MasterVolumeLevelScalar, mv.Mute, MicName(_mic), _mic.ID, MicDevices());
+                // Na primeira leitura (a que segura a abertura) a lista de microfones fica de fora:
+                // ler os nomes custa ~130 ms. Ela chega no próximo estado, 1 s depois.
+                bool first = _firstMicRead;
+                _firstMicRead = false;
+                // O nome também é lento de ler: usa o guardado da última vez (vazio só na 1ª abertura do app)
+                mic = first
+                    ? new MicDto(mv.MasterVolumeLevelScalar, mv.Mute, MicNameCache.GetValueOrDefault(_mic.ID, ""), _mic.ID, new List<DeviceDto>())
+                    : new MicDto(mv.MasterVolumeLevelScalar, mv.Mute, MicName(_mic), _mic.ID, MicDevices());
             }
             catch { /* microfone desconectado entre um ciclo e outro */ }
         }
@@ -198,6 +205,7 @@ sealed class AudioService : IDisposable
     // Ler os nomes dos dispositivos é lento (~130 ms): a lista fica guardada e só é refeita
     // quando o Windows avisa que algum microfone foi conectado, desconectado ou trocado.
     List<DeviceDto>? _micDevices;
+    bool _firstMicRead = true;
     readonly DeviceWatcher _deviceWatcher = new();
     bool _watcherRegistered;
 
@@ -226,7 +234,10 @@ sealed class AudioService : IDisposable
 
     // Nome do microfone atual, tirado da lista guardada (sem ler as propriedades do dispositivo de novo)
     string MicName(MMDevice mic) =>
-        MicDevices().Find(d => d.Id == mic.ID)?.Name ?? CleanName(mic.FriendlyName);
+        MicNameCache[mic.ID] = MicDevices().Find(d => d.Id == mic.ID)?.Name ?? CleanName(mic.FriendlyName);
+
+    // Nomes de microfone já lidos (por id), guardados enquanto o app roda
+    static readonly Dictionary<string, string> MicNameCache = new();
 
     /// <summary>Recebe os avisos do Windows sobre dispositivos de áudio (chegam em outra thread).</summary>
     sealed class DeviceWatcher : IMMNotificationClient
@@ -398,19 +409,28 @@ sealed class AudioService : IDisposable
         return best ?? fallback;
     }
 
+    // Ícones já extraídos ficam guardados enquanto o app roda (poucos KB cada):
+    // reabrir o mixer não extrai de novo do .exe.
+    static readonly Dictionary<string, string?> IconCache = new(StringComparer.OrdinalIgnoreCase);
+
     static string? IconDataUri(string? path)
     {
         if (path == null) return null;
+        if (IconCache.TryGetValue(path, out var cached)) return cached;
+        string? uri = null;
         try
         {
             using var ic = Icon.ExtractAssociatedIcon(path);
-            if (ic == null) return null;
-            using var bmp = ic.ToBitmap();
-            using var ms = new MemoryStream();
-            bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-            return "data:image/png;base64," + Convert.ToBase64String(ms.ToArray());
+            if (ic != null)
+            {
+                using var bmp = ic.ToBitmap();
+                using var ms = new MemoryStream();
+                bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                uri = "data:image/png;base64," + Convert.ToBase64String(ms.ToArray());
+            }
         }
-        catch { return null; }
+        catch { }
+        return IconCache[path] = uri;
     }
 
     public void Dispose()
