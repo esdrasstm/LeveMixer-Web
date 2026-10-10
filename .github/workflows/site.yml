@@ -1,0 +1,55 @@
+# Publica a landing page (pasta site/) no GitHub Pages: https://esdrasstm.github.io/Volum/
+# Roda sozinho quando a LP ou a interface do app mudam (a demo usa o CSS/JS do app),
+# e também pelo botão em Actions → "Publicar site" → Run workflow.
+# Precisa estar ligado uma vez em Settings → Pages → Source: "GitHub Actions".
+name: Publicar site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "LeveMixerWeb/wwwroot/**"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      # Localmente a demo lê a interface direto da pasta do app (../LeveMixerWeb/wwwroot).
+      # No site, essa pasta vai junto como app/ e o caminho é trocado.
+      - name: Montar o site
+        run: |
+          mkdir -p _site/app
+          cp -r site/. _site/
+          cp -r LeveMixerWeb/wwwroot/. _site/app/
+          sed -i 's#\.\./LeveMixerWeb/wwwroot/#app/#g' _site/demo.html
+          grep -q 'app/app.js' _site/demo.html
+
+      - name: Preparar o Pages
+        uses: actions/configure-pages@v5
+
+      - name: Enviar os arquivos
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Publicar
+        id: deploy
+        uses: actions/deploy-pages@v4
