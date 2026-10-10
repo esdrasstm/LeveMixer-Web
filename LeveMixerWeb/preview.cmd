@@ -12,7 +12,7 @@ echo Compilando...
 dotnet build -c Release -v quiet -nologo
 if errorlevel 1 (
   echo.
-  echo Deu erro na compilacao. Copie a mensagem acima e mande para o Claude.
+  echo Deu erro na compilacao. Veja a mensagem acima.
   pause
   exit /b 1
 )

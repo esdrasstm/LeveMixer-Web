@@ -5,3 +5,6 @@ Releases/
 .vs/
 *.user
 *.suo
+
+# Anotações locais do projeto (não vão para o GitHub)
+CLAUDE.md
